@@ -1,0 +1,24 @@
+# DNS A records must point stitchmate.online and api.stitchmate.online to this VPS.
+# Caddy automatically requests and renews TLS certificates when 80/443 are reachable.
+stitchmate.online {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+    handle /api/* {
+        reverse_proxy api:4000
+    }
+    handle {
+        reverse_proxy web:3000
+    }
+}
+
+www.stitchmate.online {
+    redir https://stitchmate.online{uri} permanent
+}
+
+api.stitchmate.online {
+    encode zstd gzip
+    reverse_proxy api:4000
+}

@@ -1,0 +1,93 @@
+name: StitchMate CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stitchmate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Require committed lockfile
+        run: test -s pnpm-lock.yaml || { echo 'Commit pnpm-lock.yaml before deployment'; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @stitchmate/api prisma:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/stitchmate
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm test
+
+  deploy:
+    needs: quality
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SSH deployment key and pinned host key
+        env:
+          STITCHMATE_DEPLOY_KEY: ${{ secrets.STITCHMATE_DEPLOY_KEY }}
+          STITCHMATE_KNOWN_HOSTS: ${{ secrets.STITCHMATE_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$STITCHMATE_DEPLOY_KEY"
+          test -n "$STITCHMATE_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$STITCHMATE_DEPLOY_KEY" > "$HOME/.ssh/stitchmate_deploy"
+          chmod 600 "$HOME/.ssh/stitchmate_deploy"
+          printf '%s\n' "$STITCHMATE_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+      # Build on GitHub's runner, not the 4 GB VPS.
+      - name: Build the application Docker image on GitHub
+        run: |
+          set -euo pipefail
+          docker build --pull \
+            --build-arg NEXT_PUBLIC_API_URL=/api/v1 \
+            --build-arg NEXT_PUBLIC_OTP_CHANNEL=whatsapp \
+            -t "stitchmate/app:${GITHUB_SHA}" .
+      - name: Stream tested release image to VPS securely
+        run: |
+          set -euo pipefail
+          docker save "stitchmate/app:${GITHUB_SHA}" | gzip -1 | \
+            ssh -i "$HOME/.ssh/stitchmate_deploy" \
+              -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+              -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+              stitchdeploy@143.110.178.247 'gzip -dc | docker load'
+      - name: Upload release source (no secrets, no data)
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude='.env' --exclude='.env.*' \
+            --exclude='.git/' --exclude='node_modules/' \
+            --exclude='.next/' --exclude='dist/' \
+            --exclude='.stitchmate-backups/' \
+            -e "ssh -i $HOME/.ssh/stitchmate_deploy -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes" \
+            ./ stitchdeploy@143.110.178.247:/opt/stitchmate/app/
+      - name: Deploy release on VPS
+        run: |
+          set -euo pipefail
+          ssh -i "$HOME/.ssh/stitchmate_deploy" \
+            -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes \
+            stitchdeploy@143.110.178.247 \
+            "bash /opt/stitchmate/app/deploy/remote-deploy.sh '${GITHUB_SHA}'"

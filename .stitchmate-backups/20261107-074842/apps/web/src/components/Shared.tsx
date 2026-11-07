@@ -1,0 +1,15 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {api} from '@/lib/api';
+import Link from 'next/link';
+export function useLoad<T>(path:string,enabled=true){const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);const [version,refresh]=useState(0);useEffect(()=>{if(!enabled){setLoading(false);return;}let active=true;setLoading(true);api<T>(path).then(d=>{if(active){setData(d);setError('');}}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[path,enabled,version]);return {data,error,loading,refresh:()=>refresh(n=>n+1)};}
+export function PageTitle({eyebrow,title,lead}:{eyebrow?:string,title:string,lead?:string}){return <div className="page-title"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{lead&&<p>{lead}</p>}</div>}
+export function Alert({error,success}:{error?:string;success?:string}){return <>{error&&<div className="error" role="alert">{error}</div>}{success&&<div className="success" role="status">{success}</div>}</>}
+export function SectionHeader({children,action}:{children:React.ReactNode;action?:{label:string;href:string}}){return <div className="list-header"><h3>{children}</h3>{action&&<Link href={action.href} className="text-link">{action.label} →</Link>}</div>}
+export function Busy({loading}:{loading:boolean}){return loading?<p className="muted">Loading…</p>:null;}
+export type Category={id:string;code:string;title:string;serviceType:string;description:string};
+export type TailorService={id:string;categoryId:string;basePricePaise:string;minDays:number;maxDays:number;category:Category};
+export type Tailor={id:string;slug:string;shopName:string;description:string;pincode:string;turnaroundDays:number;status?:string;services:TailorService[];zones?:string[];address?:string};
+export type OrderItem={id:string;quantity:number;categoryId:string;category:Category;productionStatus:string;fileIds:string[];instructions?:string};
+export type Quote={id:string;revision:number;status:string;subtotalPaise:string;logisticsPaise:string;taxPaise:string;discountPaise:string;totalPaise:string;validUntil:string;notes?:string;lines:{id:string;orderItemId:string;description:string;quantity:number;unitPricePaise:string;totalPaise:string}[]};
+export type Order={id:string;orderNumber:string;status:string;paymentStatus:string;createdAt:string;serviceType:string;tailorId:string;customerId:string;acceptedQuoteId?:string;tailor?:{shopName:string;slug?:string};items:OrderItem[];quotes:Quote[];events:{id:string;from:string;to:string;createdAt:string;reason?:string}[];logistics:{id:string;status:string;direction:string;packageId:string;scheduledAt?:string;handoffs:{step:string;occurredAt:string}[]}[];disputes:{id:string;status:string;description:string}[];pickupAddress?:{id:string;name:string;line1:string;pincode:string};review?:{id:string;score:number}};

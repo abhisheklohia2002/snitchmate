@@ -1,0 +1,446 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(uuid()) @db.Uuid
+  phone               String               @unique
+  name                String?
+  email               String?              @unique
+  status              String               @default("ACTIVE")
+  whatsappNotificationsOptInAt DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  roles               UserRole[]
+  sessions            Session[]
+  otpChallenges       OtpChallenge[]
+  addresses           Address[]
+  ownedTailors        Tailor[]
+  orders              Order[]
+  measurementProfiles MeasurementProfile[]
+  files               UploadedFile[]
+}
+model UserRole {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  role      String
+  tailorId  String?  @db.Uuid
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+  createdAt DateTime @default(now())
+  @@unique([userId,role,tailorId])
+  @@index([userId,role])
+}
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,expiresAt])
+}
+model OtpChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  otpHash   String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,createdAt])
+}
+model Address {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  label        String
+  name         String
+  phone        String
+  line1        String
+  line2        String?
+  city         String
+  state        String
+  pincode      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields:[userId],references:[id],onDelete:Restrict)
+  pickups      Order[]  @relation("OrderPickup")
+  returns      Order[]  @relation("OrderReturn")
+  @@index([userId])
+  @@index([pincode])
+}
+model ServiceZone {
+  id               String   @id @default(uuid()) @db.Uuid
+  pincode          String   @unique
+  active           Boolean  @default(true)
+  pickupFeePaise   BigInt   @default(7450)
+  returnFeePaise   BigInt   @default(7450)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+model Tailor {
+  id                 String            @id @default(uuid()) @db.Uuid
+  ownerId            String            @db.Uuid
+  shopName           String
+  slug               String            @unique
+  description        String            @default("")
+  pincode            String
+  address            String
+  latitude           Float?            // Admin-verified workshop latitude; do not infer from pincode
+  longitude          Float?            // Admin-verified workshop longitude
+  locationVerifiedAt DateTime?
+  pendingLatitude    Float?            // Tailor-submitted, not public until approval
+  pendingLongitude   Float?
+  locationSubmittedAt DateTime?
+  status             String            @default("PENDING")
+  maxOpenOrders      Int               @default(20)
+  turnaroundDays     Int               @default(7)
+  verifiedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  owner              User              @relation(fields:[ownerId],references:[id])
+  services           TailorService[]
+  portfolio          TailorPortfolio[]
+  zones              TailorZone[]
+  orders             Order[]
+  payouts            TailorPayout[]
+  @@index([status,pincode])
+}
+model TailorZone {
+  id        String  @id @default(uuid()) @db.Uuid
+  tailorId  String  @db.Uuid
+  pincode   String
+  active    Boolean @default(true)
+  tailor    Tailor  @relation(fields:[tailorId],references:[id],onDelete:Cascade)
+  @@unique([tailorId,pincode])
+  @@index([pincode,active])
+}
+model ServiceCategory {
+  id                     String          @id @default(uuid()) @db.Uuid
+  code                   String          @unique
+  title                  String
+  description            String          @default("")
+  serviceType            String
+  imageIcon              String          @default("scissors")
+  measurementSchema      Json?
+  customizationSchema    Json?
+  active                 Boolean         @default(true)
+  createdAt              DateTime        @default(now())
+  services               TailorService[]
+  items                  OrderItem[]
+  portfolio              TailorPortfolio[]
+}
+model TailorService {
+  id             String          @id @default(uuid()) @db.Uuid
+  tailorId       String          @db.Uuid
+  categoryId     String          @db.Uuid
+  basePricePaise BigInt
+  minDays        Int             @default(3)
+  maxDays        Int             @default(7)
+  active         Boolean         @default(true)
+  tailor         Tailor          @relation(fields:[tailorId],references:[id],onDelete:Cascade)
+  category       ServiceCategory @relation(fields:[categoryId],references:[id])
+  @@unique([tailorId,categoryId])
+  @@index([categoryId,active])
+}
+model TailorPortfolio {
+  id            String          @id @default(uuid()) @db.Uuid
+  tailorId      String          @db.Uuid
+  categoryId    String          @db.Uuid
+  fileId        String          @db.Uuid
+  caption       String          @default("")
+  approved      Boolean         @default(false)
+  permission    Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  tailor        Tailor          @relation(fields:[tailorId],references:[id],onDelete:Cascade)
+  category      ServiceCategory @relation(fields:[categoryId],references:[id])
+}
+model MeasurementProfile {
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String               @db.Uuid
+  label     String
+  forPerson String
+  method    String               @default("SELF")
+  createdAt DateTime             @default(now())
+  user      User                 @relation(fields:[userId],references:[id])
+  versions  MeasurementVersion[]
+  @@index([userId])
+}
+model MeasurementVersion {
+  id           String             @id @default(uuid()) @db.Uuid
+  profileId    String             @db.Uuid
+  version      Int
+  values       Json
+  unit         String             @default("CM")
+  createdAt    DateTime           @default(now())
+  profile      MeasurementProfile @relation(fields:[profileId],references:[id],onDelete:Restrict)
+  orderItems   OrderItem[]
+  @@unique([profileId,version])
+}
+model UploadedFile {
+  id         String    @id @default(uuid()) @db.Uuid
+  ownerId    String    @db.Uuid
+  storageKey String    @unique
+  mimeType   String
+  sizeBytes  Int
+  purpose    String
+  status     String    @default("PENDING")
+  createdAt  DateTime  @default(now())
+  owner      User      @relation(fields:[ownerId],references:[id])
+  @@index([ownerId,status])
+}
+model Order {
+  id                String           @id @default(uuid()) @db.Uuid
+  orderNumber       String           @unique
+  customerId        String           @db.Uuid
+  tailorId          String           @db.Uuid
+  pickupAddressId   String           @db.Uuid
+  returnAddressId   String           @db.Uuid
+  serviceType       String
+  status            String           @default("DRAFT")
+  paymentStatus     String           @default("NOT_INITIATED")
+  acceptedQuoteId   String?          @db.Uuid
+  version           Int              @default(0)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  customer          User             @relation(fields:[customerId],references:[id])
+  tailor            Tailor           @relation(fields:[tailorId],references:[id])
+  pickupAddress     Address          @relation("OrderPickup",fields:[pickupAddressId],references:[id])
+  returnAddress     Address          @relation("OrderReturn",fields:[returnAddressId],references:[id])
+  items             OrderItem[]
+  quotes            Quote[]
+  events            OrderStatusEvent[]
+  payments          PaymentOrder[]
+  logistics         LogisticsJob[]
+  disputes          Dispute[]
+  payout            TailorPayout?
+  review            Review?
+  refunds           Refund[]
+  @@index([customerId,createdAt(sort: Desc)])
+  @@index([tailorId,status,createdAt(sort: Desc)])
+}
+model OrderItem {
+  id                   String              @id @default(uuid()) @db.Uuid
+  orderId              String              @db.Uuid
+  categoryId           String              @db.Uuid
+  quantity             Int
+  design               Json?
+  material             Json?
+  instructions         String?
+  measurementVersionId String?             @db.Uuid
+  measurementSnapshot  Json?
+  hasFittingSample     Boolean             @default(false)
+  fileIds              Json?
+  productionStatus     String              @default("NOT_STARTED")
+  createdAt            DateTime            @default(now())
+  order                Order               @relation(fields:[orderId],references:[id],onDelete:Restrict)
+  category             ServiceCategory     @relation(fields:[categoryId],references:[id])
+  measurementVersion   MeasurementVersion? @relation(fields:[measurementVersionId],references:[id])
+  quoteLines           QuoteLine[]
+  productionEvents     ProductionEvent[]
+  @@index([orderId])
+}
+model Quote {
+  id             String      @id @default(uuid()) @db.Uuid
+  orderId        String      @db.Uuid
+  revision       Int
+  status         String      @default("ISSUED")
+  subtotalPaise  BigInt
+  logisticsPaise BigInt
+  taxPaise       BigInt
+  discountPaise  BigInt
+  totalPaise     BigInt
+  notes          String?
+  validUntil     DateTime
+  createdAt      DateTime    @default(now())
+  order          Order       @relation(fields:[orderId],references:[id])
+  lines          QuoteLine[]
+  @@unique([orderId,revision])
+}
+model QuoteLine {
+  id             String    @id @default(uuid()) @db.Uuid
+  quoteId        String    @db.Uuid
+  orderItemId    String    @db.Uuid
+  description    String
+  quantity       Int
+  unitPricePaise BigInt
+  totalPaise     BigInt
+  quote          Quote     @relation(fields:[quoteId],references:[id])
+  orderItem      OrderItem @relation(fields:[orderItemId],references:[id])
+}
+model OrderStatusEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid
+  from      String
+  to        String
+  actorId   String?
+  reason    String?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields:[orderId],references:[id])
+  @@index([orderId,createdAt])
+}
+model ProductionEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  orderItemId String    @db.Uuid
+  actorId     String    @db.Uuid
+  status      String
+  note        String?
+  fileId      String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  item        OrderItem @relation(fields:[orderItemId],references:[id])
+}
+model LogisticsJob {
+  id         String             @id @default(uuid()) @db.Uuid
+  orderId    String             @db.Uuid
+  direction  String
+  status     String             @default("UNASSIGNED")
+  courierId  String?            @db.Uuid
+  packageId  String             @unique
+  sealId     String?
+  scheduledAt DateTime?
+  attempts   Int                @default(0)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  order      Order              @relation(fields:[orderId],references:[id])
+  handoffs   LogisticsHandoff[]
+  otpCodes   HandoffCode[]
+  @@unique([orderId,direction])
+  @@index([status,scheduledAt])
+}
+model HandoffCode {
+  id        String       @id @default(uuid()) @db.Uuid
+  jobId     String       @db.Uuid
+  step      String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int          @default(0)
+  usedAt    DateTime?
+  createdAt DateTime     @default(now())
+  job       LogisticsJob @relation(fields:[jobId],references:[id])
+  @@index([jobId,step,createdAt])
+}
+model LogisticsHandoff {
+  id            String       @id @default(uuid()) @db.Uuid
+  jobId         String       @db.Uuid
+  step          String
+  fromParty     String
+  toParty       String
+  itemCount     Int
+  sealId        String
+  proofFileId   String?      @db.Uuid
+  conditionNote String
+  verifiedById  String       @db.Uuid
+  occurredAt    DateTime     @default(now())
+  job           LogisticsJob @relation(fields:[jobId],references:[id])
+  @@unique([jobId,step])
+}
+model PaymentOrder {
+  id              String               @id @default(uuid()) @db.Uuid
+  orderId         String               @db.Uuid
+  provider        String
+  providerOrderId String               @unique
+  amountPaise     BigInt
+  currency        String               @default("INR")
+  status          String               @default("PENDING")
+  idempotencyKey  String               @unique
+  createdAt       DateTime             @default(now())
+  order           Order                @relation(fields:[orderId],references:[id])
+  transactions    PaymentTransaction[]
+}
+model PaymentTransaction {
+  id                String       @id @default(uuid()) @db.Uuid
+  paymentOrderId    String       @db.Uuid
+  providerPaymentId String       @unique
+  status            String
+  amountPaise       BigInt
+  createdAt         DateTime     @default(now())
+  paymentOrder      PaymentOrder @relation(fields:[paymentOrderId],references:[id])
+}
+model WebhookEvent {
+  id         String    @id @default(uuid()) @db.Uuid
+  provider   String
+  eventId    String
+  eventType  String
+  hash       String
+  processed  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  @@unique([provider,eventId])
+}
+model TailorPayout {
+  id                 String   @id @default(uuid()) @db.Uuid
+  orderId            String   @unique @db.Uuid
+  tailorId           String   @db.Uuid
+  grossPaise         BigInt
+  commissionPaise    BigInt
+  adjustmentsPaise   BigInt   @default(0)
+  netPaise           BigInt
+  status             String   @default("PENDING_APPROVAL")
+  approvedBy         String?  @db.Uuid
+  providerReference  String?  @unique
+  paidAt             DateTime?
+  createdAt          DateTime @default(now())
+  order              Order    @relation(fields:[orderId],references:[id])
+  tailor             Tailor   @relation(fields:[tailorId],references:[id])
+}
+model Dispute {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  reporterId  String   @db.Uuid
+  category    String
+  description String
+  status      String   @default("OPEN")
+  decision    String?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+  order       Order    @relation(fields:[orderId],references:[id])
+  @@index([orderId,status])
+}
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @unique @db.Uuid
+  score     Int
+  text      String?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields:[orderId],references:[id])
+}
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String
+  resource   String
+  resourceId String
+  context    Json?
+  createdAt  DateTime @default(now())
+  @@index([resource,resourceId,createdAt])
+}
+model OutboxEvent {
+  id         String    @id @default(uuid()) @db.Uuid
+  topic      String
+  payload    Json
+  status     String    @default("PENDING")
+  attempts   Int       @default(0)
+  nextRunAt  DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  processedAt DateTime?
+  @@index([status,nextRunAt])
+}
+
+model Refund {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @db.Uuid
+  amountPaise     BigInt
+  reason          String
+  idempotencyKey  String   @unique
+  status          String   @default("REQUESTED")
+  approvedBy      String?  @db.Uuid
+  providerRefundId String? @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  order           Order    @relation(fields:[orderId],references:[id],onDelete:Restrict)
+  @@index([orderId,status])
+}

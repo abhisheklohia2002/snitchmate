@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stitchmate
+      POSTGRES_PASSWORD: stitchmate_local
+      POSTGRES_DB: stitchmate
+    ports:
+    - 127.0.0.1:5432:5432
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U stitchmate
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+    - 127.0.0.1:6379:6379
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: stitchmate
+      MINIO_ROOT_PASSWORD: stitchmate_local_secret
+    ports:
+    - 127.0.0.1:9000:9000
+    - 127.0.0.1:9001:9001
+    volumes:
+    - minio_data:/data
+  minio-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+    - minio
+    entrypoint:
+    - /bin/sh
+    - -c
+    environment:
+      AWS_ACCESS_KEY_ID: stitchmate
+      AWS_SECRET_ACCESS_KEY: stitchmate_local_secret
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: 'true'
+    command:
+    - "attempt=0\nuntil aws --endpoint-url http://minio:9000 s3api list-buckets >/dev/null\
+      \ 2>&1; do\n  attempt=$((attempt + 1))\n  if [ \"$${attempt}\" -ge 30 ]; then echo\
+      \ \"MinIO never became ready\"; exit 1; fi\n  sleep 2\ndone\naws --endpoint-url\
+      \ http://minio:9000 s3api head-bucket --bucket stitchmate-private >/dev/null\
+      \ 2>&1 || aws --endpoint-url http://minio:9000 s3api create-bucket --bucket\
+      \ stitchmate-private\n"
+volumes:
+  postgres_data: null
+  minio_data: null

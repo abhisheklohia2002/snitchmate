@@ -1,0 +1,7 @@
+'use client';
+import {useState} from 'react';
+import Link from 'next/link';
+import {Portal} from '@/components/Portal';
+import {PageTitle,useLoad,Alert,Order} from '@/components/Shared';
+import {post,textStatus,dateTime} from '@/lib/api';
+export default function Requests(){const {data,refresh,error}=useLoad<Order[]>('/tailor/requests');const [message,setMessage]=useState('');async function action(id:string,choice:'accept'|'decline'){setMessage('');try{await post(`/tailor/requests/${id}/${choice}`);refresh();}catch(e){setMessage((e as Error).message);}}return <Portal role="tailor"><PageTitle eyebrow="Customer requests" title="New quote requests" lead="Review customer requirements and accept or decline before sending your quotation."/><Alert error={error||message}/><div className="rows">{data?.map(o=><div className="row-card" key={o.id}><div><h3>{o.orderNumber}</h3><p>{o.items.map(i=>i.category.title).join(', ')} · {dateTime(o.createdAt)}</p><span className="pill">{textStatus(o.status)}</span></div><div className="form-actions">{o.status==='QUOTE_REQUESTED'&&<><button className="btn small" onClick={()=>action(o.id,'accept')}>Accept request</button><button className="btn secondary small" onClick={()=>action(o.id,'decline')}>Decline</button></>}<Link className="btn secondary small" href={`/tailor/orders/${o.id}`}>Review & quote →</Link></div></div>)}{!data?.length&&<p>No requests awaiting action.</p>}</div></Portal>}

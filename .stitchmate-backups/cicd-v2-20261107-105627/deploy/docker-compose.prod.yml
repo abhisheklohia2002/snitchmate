@@ -1,0 +1,39 @@
+# Deployment template only: not a tested, secure production deployment.
+# Supply a managed Postgres, Redis, S3 and secrets in env_file before use.
+services:
+  api:
+    image: stitchmate/app:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api/v1
+    command: ["pnpm", "--filter", "@stitchmate/api", "start"]
+    restart: unless-stopped
+    env_file: ../.env.production
+    expose: ["4000"]
+  web:
+    image: stitchmate/app:latest
+    command: ["pnpm", "--filter", "@stitchmate/web", "start"]
+    restart: unless-stopped
+    env_file: ../.env.production
+    depends_on: [api]
+    expose: ["3000"]
+  worker:
+    image: stitchmate/app:latest
+    command: ["pnpm", "--filter", "@stitchmate/worker", "exec", "node", "dist/main.js"]
+    restart: unless-stopped
+    env_file: ../.env.production
+    depends_on: [api]
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+volumes:
+  caddy_data:
+  caddy_config:

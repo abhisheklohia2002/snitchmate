@@ -1,0 +1,7 @@
+'use client';
+import Link from 'next/link';
+import {useParams} from 'next/navigation';
+import {MapPin,Scissors,Clock3} from 'lucide-react';
+import {PageTitle,Busy,Alert,Tailor,useLoad} from '@/components/Shared';
+import {money} from '@/lib/api';
+export default function TailorProfile(){const {slug}=useParams<{slug:string}>();const {data:t,error,loading}=useLoad<Tailor>(`/tailors/${slug}`);return <div className="container"><PageTitle eyebrow="Local craftsmanship" title={t?.shopName||'Tailor profile'} lead={t?.description}/><Busy loading={loading}/><Alert error={error}/>{t&&<div className="grid-2" style={{paddingBottom:70}}><div className="card"><div className="service-illustration" style={{height:240}}><Scissors size={105} strokeWidth={1.2}/></div><span className="pill">Verified StitchMate partner</span><p><MapPin size={15}/> Serving {t.zones?.join(', ')||t.pincode}</p><p><Clock3 size={15}/> Estimated {t.turnaroundDays} days</p><Link className="btn" href={`/book/${t.id}`}>Start custom order →</Link></div><div className="card"><h2 style={{fontSize:'2rem'}}>Available services</h2><p>Final prices are quoted after the tailor reviews your garment and requirements.</p><div className="rows">{t.services.map(s=><div key={s.id} className="price-row"><span>{s.category.title}<br/><small className="muted">{s.minDays}–{s.maxDays} days</small></span><strong>From {money(s.basePricePaise)}</strong></div>)}</div></div></div>}</div>}

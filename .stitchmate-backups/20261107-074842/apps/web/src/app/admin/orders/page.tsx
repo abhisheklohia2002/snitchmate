@@ -1,0 +1,7 @@
+'use client';
+import Link from 'next/link';
+import {useState} from 'react';
+import {Portal} from '@/components/Portal';
+import {PageTitle,useLoad,Order,Alert} from '@/components/Shared';
+import {post,money,textStatus} from '@/lib/api';
+export default function AdminOrders(){const {data,refresh,error}=useLoad<Order[]>('/admin/orders');const [msg,setMsg]=useState('');async function qc(id:string){setMsg('');try{await post(`/admin/orders/${id}/approve-qc`);refresh();setMsg('QC passed and return delivery job created.');}catch(e){setMsg((e as Error).message);}}return <Portal role="admin"><PageTitle eyebrow="Operations queue" title="All orders" lead="Approve quality checks only when finished garments and evidence have been verified."/><Alert error={error||(!msg.startsWith('QC passed')?msg:undefined)} success={msg.startsWith('QC passed')?msg:undefined}/><div className="card table-scroll"><table><thead><tr><th>Order</th><th>Tailor</th><th>Garments</th><th>Status</th><th>Payment</th><th>Next action</th></tr></thead><tbody>{data?.map(o=><tr key={o.id}><td><Link href={`/orders/${o.id}`} className="text-link">{o.orderNumber}</Link></td><td>{o.tailor?.shopName}</td><td>{o.items.map(i=>i.category.title).join(', ')}</td><td><span className="pill">{textStatus(o.status)}</span></td><td>{o.paymentStatus}</td><td>{o.status==='QUALITY_CHECK'?<button className="btn small" onClick={()=>qc(o.id)}>Approve QC</button>:<span className="small-note">No QC action</span>}</td></tr>)}</tbody></table></div></Portal>}
