@@ -1,33 +1,37 @@
-# StitchMate Render staging stack (Nov 2026)
-# Review costs and populate all sync:false secrets in the Render dashboard.
-# This is a paid, non-public-launch staging configuration.
+# StitchMate staging resources on Render
+# Created on a deployment-only branch to avoid the old DigitalOcean auto-deploy.
+# Import as a Blueprint only after configuring Render billing. Do not merge to main
+# until the DigitalOcean workflow has been explicitly retired.
+# Cost estimate: PostgreSQL $19 + Key Value $10 + API $7 + Worker $7 / month.
 services:
   - type: keyvalue
-    name: stitchmate-kv
+    name: stitchmate-redis
     region: singapore
-    plan: starter
+    plan: 256mb
     ipAllowList: []
     maxmemoryPolicy: noeviction
+    persistenceMode: journal-snapshot
 
   - type: web
     name: stitchmate-api
-    runtime: docker
+    runtime: node
     region: singapore
     plan: starter
-    branch: main
+    branch: deploy/render-staging-20261111
     autoDeployTrigger: off
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    dockerCommand: pnpm --filter @stitchmate/api start
+    buildCommand: corepack enable && corepack prepare pnpm@10.8.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @stitchmate/api prisma:generate && pnpm build
     preDeployCommand: pnpm --filter @stitchmate/api prisma:deploy
+    startCommand: pnpm --filter @stitchmate/api start
     healthCheckPath: /api/v1/health
     envVars:
+      - key: NODE_VERSION
+        value: "22.14.0"
       - key: NODE_ENV
         value: production
       - key: PUBLIC_LAUNCH_ENABLED
-        value: 'false'
+        value: "false"
       - key: WEB_ORIGIN
-        sync: false
+        value: https://stitchmate-web.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: stitchmate-db
@@ -35,18 +39,18 @@ services:
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: stitchmate-kv
+          name: stitchmate-redis
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
       - key: OTP_SECRET
         generateValue: true
       - key: MOCK_OTP_ENABLED
-        value: 'false'
+        value: "false"
       - key: MOCK_PAYMENT_ENABLED
-        value: 'false'
+        value: "false"
       - key: ENABLE_DEMO_PAYMENT_CONFIRM
-        value: 'false'
+        value: "false"
       - key: SMS_PROVIDER
         value: msgkart
       - key: MSGKART_API_URL
@@ -63,8 +67,6 @@ services:
         value: en_US
       - key: MSGKART_OTP_BUTTON_MODE
         value: copy_code
-      - key: MSGKART_HANDOFF_TEMPLATE_NAME
-        sync: false
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
@@ -82,52 +84,28 @@ services:
       - key: S3_SECRET_ACCESS_KEY
         sync: false
       - key: S3_FORCE_PATH_STYLE
-        value: 'false'
+        value: "false"
       - key: PLATFORM_COMMISSION_BPS
-        value: '1500'
+        value: "1500"
       - key: FIT_CLAIM_WINDOW_HOURS
-        value: '48'
+        value: "48"
       - key: ADMIN_BOOTSTRAP_PHONE
         sync: false
 
-  - type: web
-    name: stitchmate-web
-    runtime: docker
-    region: singapore
-    plan: starter
-    branch: main
-    autoDeployTrigger: off
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    dockerCommand: /bin/sh -c 'pnpm --filter @stitchmate/web exec next start -H 0.0.0.0 -p "${PORT:-10000}"'
-    healthCheckPath: /
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_PUBLIC_API_URL
-        value: /api/v1
-      - key: NEXT_PUBLIC_OTP_CHANNEL
-        value: whatsapp
-      - key: API_INTERNAL_HOSTPORT
-        fromService:
-          type: web
-          name: stitchmate-api
-          property: hostport
-
   - type: worker
     name: stitchmate-worker
-    runtime: docker
+    runtime: node
     region: singapore
     plan: starter
-    branch: main
+    branch: deploy/render-staging-20261111
     autoDeployTrigger: off
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
-    dockerCommand: node apps/worker/dist/main.js
+    buildCommand: corepack enable && corepack prepare pnpm@10.8.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @stitchmate/api prisma:generate && pnpm build
+    startCommand: node apps/worker/dist/main.js
+    maxShutdownDelaySeconds: 60
     envVars:
-      # Staging only: no customer WhatsApp messages will be sent.
-      # To activate production notifications, set NODE_ENV=production,
-      # NOTIFICATION_PROVIDER=twilio, and all approved Twilio template secrets.
+      - key: NODE_VERSION
+        value: "22.14.0"
+      # Staging: do not deliver customer WhatsApp messages until approved templates exist.
       - key: NODE_ENV
         value: development
       - key: NOTIFICATION_PROVIDER
@@ -139,7 +117,7 @@ services:
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: stitchmate-kv
+          name: stitchmate-redis
           property: connectionString
 
 databases:
@@ -148,5 +126,6 @@ databases:
     user: stitchmate
     region: singapore
     plan: basic-1gb
-    postgresMajorVersion: '17'
+    postgresMajorVersion: "16"
+    diskSizeGB: 1
     ipAllowList: []
