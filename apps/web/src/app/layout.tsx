@@ -29,3 +29,4 @@ export default function RootLayout({children}:{children:React.ReactNode}){
     <div className="container footer-bottom"><span>© {new Date().getFullYear()} StitchMate. Made to fit your life.</span><span>Currently serving selected Delhi NCR pincodes · <Link href="/help">Policies <ArrowUpRight size={13}/></Link></span></div>
   </footer>
  </AuthProvider></body></html>;
+}
