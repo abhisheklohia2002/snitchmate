@@ -70,12 +70,12 @@ export class GigsController {
   const actor=await this.auth.require(req);
   const input=parse(gigInputSchema,body);
   await this.ownership(actor.id,input.tailorId,input.categoryId);
-  await this.gallery(actor.id,input.imageFileIds);
+  await this.gallery(actor.id,input.imageFileIds??[]);
   const slug=input.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70)+'-'+randomUUID().slice(0,8);
   const result=await this.db.gig.create({data:{
     tailorId:input.tailorId,categoryId:input.categoryId,title:input.title,description:input.description,slug,imageRightsConfirmed:input.imageRightsConfirmed,
     packages:{create:input.packages.map(p=>({...p,pricePaise:BigInt(p.pricePaise),expressPricePaise:p.expressPricePaise?BigInt(p.expressPricePaise):null}))},
-    images:{create:input.imageFileIds.map((fileId,position)=>({fileId,position}))}
+    images:{create:(input.imageFileIds??[]).map((fileId,position)=>({fileId,position}))}
   },include:gigInclude});
   await this.db.auditLog.create({data:{actorId:actor.id,action:'GIG_CREATED',resource:'GIG',resourceId:result.id}});
   return result;
@@ -87,14 +87,14 @@ export class GigsController {
   must(input.tailorId===gig.tailorId,'Cannot move gig between shops','conflict');
   must(gig.status!=='PUBLISHED','Pause a published gig before modifying it','conflict');
   await this.ownership(actor.id,gig.tailorId,input.categoryId);
-  await this.gallery(actor.id,input.imageFileIds);
+  await this.gallery(actor.id,input.imageFileIds??[]);
   return this.db.$transaction(async tx=>{
     await tx.gigPackage.deleteMany({where:{gigId}});
     await tx.gigImage.deleteMany({where:{gigId}});
     return tx.gig.update({where:{id:gigId},data:{
       title:input.title,description:input.description,categoryId:input.categoryId,imageRightsConfirmed:input.imageRightsConfirmed,
       packages:{create:input.packages.map(p=>({...p,pricePaise:BigInt(p.pricePaise),expressPricePaise:p.expressPricePaise?BigInt(p.expressPricePaise):null}))},
-      images:{create:input.imageFileIds.map((fileId,position)=>({fileId,position}))}
+      images:{create:(input.imageFileIds??[]).map((fileId,position)=>({fileId,position}))}
     },include:gigInclude});
   });
  }

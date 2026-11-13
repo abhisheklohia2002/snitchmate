@@ -62,7 +62,7 @@ export class OrdersService {
    must(data.gigTier,'Select a gig package tier');
    const gig=await this.db.gig.findUnique({where:{id:data.gigId},include:{category:true,packages:true}});
    must(gig?.status==='PUBLISHED'&&gig.tailorId===tailor.id,'The selected gig is unavailable','conflict');
-   must(data.items.length===1&&data.items[0].categoryId===gig.categoryId &&
+   must(data.items.length===1&&data.items[0]?.categoryId===gig.categoryId &&
     data.serviceType===gig.category.serviceType,'The selected gig does not match your garment order','conflict');
    const tier=gig.packages.find(p=>p.tier===data.gigTier);
    must(tier,'The selected package no longer exists','conflict');
