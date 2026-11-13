@@ -17,6 +17,13 @@ export function Nav(){
  const drawerRef=useRef<HTMLDialogElement>(null);
  const accountRef=useRef<HTMLDetailsElement>(null);
  useEffect(()=>{drawerRef.current?.close();if(accountRef.current)accountRef.current.open=false;},[pathname]);
+ useEffect(()=>{
+  const dismiss=(event:PointerEvent)=>{if(accountRef.current&&!accountRef.current.contains(event.target as Node))accountRef.current.open=false;};
+  const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'&&accountRef.current)accountRef.current.open=false;};
+  document.addEventListener('pointerdown',dismiss);
+  document.addEventListener('keydown',escape);
+  return ()=>{document.removeEventListener('pointerdown',dismiss);document.removeEventListener('keydown',escape);};
+ },[]);
  const active=(href:string)=>pathname===href||(href!=='/'&&pathname.startsWith(href+'/'));
  const personal=[
   {href:'/orders',label:'My orders',Icon:Package},
