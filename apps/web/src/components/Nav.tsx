@@ -50,8 +50,8 @@ export function Nav(){
         <summary className="account-menu-button" aria-label="Open account navigation"><span className="account-avatar"><UserRound size={17}/></span><span className="account-text">Account</span><ChevronDown className="account-chevron" size={15}/></summary>
         <div className="account-dropdown">
           <div className="account-dropdown-heading"><span className="eyebrow">Your StitchMate</span><strong>{user.name?.trim()||'Welcome back'}</strong></div>
-          {personal.map(({href,label,Icon})=><MenuItem key={href}><Link className={'account-dropdown-item'+(active(href)?' active':'')} href={href}><Icon size={17}/>{label}</Link>)}
-          {workspaces.length>0&&<><div className="account-dropdown-divider"/><div className="account-dropdown-label">Workspaces</div>{workspaces.map(({href,label,Icon})=><MenuItem key={href}><Link className={'account-dropdown-item'+(active(href)?' active':'')} href={href}><Icon size={17}/>{label}</Link>)}</>}
+          {personal.map(({href,label,Icon})=><Link className={'account-dropdown-item'+(active(href)?' active':'')} href={href}><Icon size={17}/>{label}</Link>)}
+          {workspaces.length>0&&<><div className="account-dropdown-divider"/><div className="account-dropdown-label">Workspaces</div>{workspaces.map(({href,label,Icon})=><Link className={'account-dropdown-item'+(active(href)?' active':'')} href={href}><Icon size={17}/>{label}</Link>)}</>}
           <div className="account-dropdown-divider"/>
           <button type="button" className="account-dropdown-item account-signout" onClick={signOut}><LogOut size={17}/>Sign out</button>
         </div>
@@ -89,3 +89,4 @@ export function Nav(){
      </div>
    </dialog>
   </header>;
+}
