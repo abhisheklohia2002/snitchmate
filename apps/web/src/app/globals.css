@@ -142,7 +142,7 @@ tr:last-child td{border-bottom:none}
 .mobile-drawer-layout{position:absolute;inset:0;display:flex;justify-content:flex-end;pointer-events:none}
 .mobile-drawer-backdrop{position:absolute;inset:0;pointer-events:auto}
 .mobile-drawer-panel{position:relative;pointer-events:auto;width:min(420px,calc(100vw - 32px));height:100%;background:var(--paper);box-shadow:-12px 0 40px rgba(17,42,34,.16);display:flex;flex-direction:column;overflow:hidden;animation:sm-drawer-in .22s ease both}
-@keyframes sm-drawer-in{from{transform:translateX(25px);opacity:.65}to{transform:translateX(0);opacity:1}}
+@keyframes sm-drawer-in{from{transform:translateX(25px)}to{transform:translateX(0)}}
 .mobile-drawer-top{display:flex;align-items:center;justify-content:space-between;padding:24px 23px 20px;border-bottom:1px solid var(--border)}
 .mobile-drawer-title{font-family:'DM Sans',Arial,sans-serif;font-size:1.25rem;font-weight:700;letter-spacing:-.035em}
 .mobile-drawer-close{width:40px;height:40px;border:1px solid var(--border);border-radius:11px;background:white;color:var(--pine);display:grid;place-items:center}

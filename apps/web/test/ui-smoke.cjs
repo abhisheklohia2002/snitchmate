@@ -25,6 +25,7 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
    await page.locator('.mobile-menu').click();
    assert.ok(await page.locator('.mobile-drawer-root').evaluate(el=>el.open),config.name+' mobile drawer did not open');
    assert.ok(await page.getByRole('navigation',{name:'Mobile discovery navigation'}).getByText('Find tailors').isVisible(),config.name+' missing route');
+   await page.waitForTimeout(300); // Capture the fully opened, opaque drawer after its slide animation.
    await page.screenshot({path:'artifacts/ui-screenshots/'+config.name+'-drawer.png',fullPage:false});
    await page.keyboard.press('Escape');
    assert.equal(await page.locator('.mobile-drawer-root').evaluate(el=>el.open),false,config.name+' Escape did not close drawer');
