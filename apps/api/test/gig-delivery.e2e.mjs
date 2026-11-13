@@ -42,7 +42,7 @@ async function handoff(rider,jobId,step,proofId,count=1){
   }
   assert.match(code||'',/^\d{6}$/,'mock OTP was not logged for the latest handoff');
   const data={step,otp:code,itemCount:count,sealId:'SEAL-CI-123',conditionNote:'All garment pieces counted, seal intact, evidence checked',proofFileId:proofId};
-  await request('POST','/courier/jobs/'+jobId+'/handoffs',{...data,itemCount:count+1},rider,400);
+  await request('POST','/courier/jobs/'+jobId+'/handoffs',{...data,itemCount:count+1},rider,409);
   const proof=await request('POST','/courier/jobs/'+jobId+'/handoffs',data,rider);
   note(step+' handoff verified with mock OTP and photo fixture');
   return proof;
