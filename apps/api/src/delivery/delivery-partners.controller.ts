@@ -26,7 +26,7 @@ export class DeliveryPartnersController {
   const actor=await this.auth.require(req);
   return this.db.deliveryPartner.findUnique({where:{userId:actor.id}});
  }
- @Patch('delivery/availability') async availability(@Req() req:Request,@Body() body:unknown){
+ @Post('delivery/availability') async availability(@Req() req:Request,@Body() body:unknown){
   const actor=await this.auth.require(req),input=parse(z.object({available:z.boolean()}),body);
   const partner=await this.db.deliveryPartner.findUnique({where:{userId:actor.id}});
   must(partner?.status==='APPROVED','Delivery partner verification required','forbidden');

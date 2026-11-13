@@ -56,7 +56,7 @@ function Screen(){
       <label>Condition photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>attach(j.id,e.target.files?.[0])}/></label>
       <p className="small-note">{files[j.id]?'Verified photo uploaded':'Upload a photo before confirming.'}</p>
       <label>Condition notes<textarea value={notes[j.id]||''} onChange={e=>setNotes(v=>({...v,[j.id]:e.target.value}))} placeholder="Seal intact, all pieces counted, no visible damage"/></label>
-      <button className="btn" disabled={busy||!files[j.id]||!/^[0-9]{6}$/.test(otp[j.id]||'')||(seals[j.id]||'').trim().length<3||(notes[j.id]||'').trim().length<3} onClick={()=>act('/courier/jobs/'+j.id+'/handoffs',{step,otp:otp[j.id],itemCount:count,sealId:seals[j.id].trim(),conditionNote:notes[j.id].trim(),proofFileId:files[j.id]})}>Verify {step==='SENDER_PICKUP'?'pickup':'delivery'} & update tracking</button>
+      <button className="btn" disabled={busy||!files[j.id]||!/^[0-9]{6}$/.test(otp[j.id]||'')||(seals[j.id]||'').trim().length<3||(notes[j.id]||'').trim().length<3} onClick={()=>act('/courier/jobs/'+j.id+'/handoffs',{step,otp:otp[j.id],itemCount:count,sealId:(seals[j.id]||'').trim(),conditionNote:(notes[j.id]||'').trim(),proofFileId:files[j.id]})}>Verify {step==='SENDER_PICKUP'?'pickup':'delivery'} & update tracking</button>
      </div>;
     })()}
    </div>)}

@@ -6,10 +6,11 @@ import {post,upload,money} from '@/lib/api';
 type Shop={id:string;shopName:string;status:string;services:{categoryId:string;category:Category}[]};
 type Gig={id:string;title:string;status:string;slug:string;tailor:{shopName:string};packages:{tier:string;pricePaise:string}[]};
 const tiers=['BASIC','STANDARD','PREMIUM'] as const;
+type Tier=typeof tiers[number];
 export default function TailorGigs(){
  const {data:shops}=useLoad<Shop[]>('/tailor/me');const {data:gigs,refresh}=useLoad<Gig[]>('/gigs/mine');
  const [shop,setShop]=useState(''),[category,setCategory]=useState(''),[title,setTitle]=useState(''),[desc,setDesc]=useState('');
- const [packages,setPackages]=useState<Record<string,{enabled:boolean;title:string;description:string;price:string;days:string;revisions:string}>>({
+ const [packages,setPackages]=useState<Record<Tier,{enabled:boolean;title:string;description:string;price:string;days:string;revisions:string}>>({
  BASIC:{enabled:true,title:'Essential tailoring',description:'Tailored to your measurements and specifications',price:'500',days:'7',revisions:'1'},
  STANDARD:{enabled:false,title:'Premium tailoring',description:'Additional finishing and custom design details',price:'850',days:'5',revisions:'2'},
  PREMIUM:{enabled:false,title:'Signature tailoring',description:'Priority, personalised tailoring and premium finish',price:'1400',days:'4',revisions:'3'}
