@@ -66,11 +66,4 @@ export function ThemeProvider({children}:{children:ReactNode}){
  return <Context.Provider value={ctx}><ConfigProvider theme={token} componentSize="large"><AntApp>{children}</AntApp></ConfigProvider></Context.Provider>;
 }
 export function useTheme(){const ctx=useContext(Context);if(!ctx)throw new Error('ThemeProvider missing');return ctx;}
-export const themeBootScript=String.raw\`(function(){
- try{
-  var choice=localStorage.getItem('stitchmate-theme-preference');
-  var dark=choice==='dark'||(choice!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.dataset.theme=dark?'dark':'light';
-  document.documentElement.style.colorScheme=dark?'dark':'light';
- }catch(e){document.documentElement.dataset.theme='light';}
-})();\`;
+export const themeBootScript="(function(){try{var choice=localStorage.getItem('stitchmate-theme-preference');var dark=choice==='dark'||(choice!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';document.documentElement.style.colorScheme=dark?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();";
