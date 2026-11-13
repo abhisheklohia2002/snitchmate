@@ -1,7 +1,32 @@
 import type {Metadata} from 'next';
+import Link from 'next/link';
+import {ArrowUpRight,Scissors,ShieldCheck,Truck} from 'lucide-react';
 import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import {AuthProvider} from '@/components/Auth';
 import {Nav} from '@/components/Nav';
-export const metadata:Metadata={title:'StitchMate | Tailoring at your doorstep',description:'Find verified local tailors for custom stitching and clothing alterations. We pick up and deliver your garments.'};
-export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body><AuthProvider><Nav/>{process.env.NEXT_PUBLIC_STITCHMATE_STAGE==='true'&&<div role="status" style={{background:'#fff0cf',color:'#5f3c13',padding:'10px 20px',textAlign:'center',fontWeight:700}}>STITCHMATE STAGING DEMO — No real payments, OTPs or deliveries. Test data only.</div>}<main>{children}</main><footer className="footer"><div className="container foot-grid"><div><span className="brand footer-brand">stitchmate.</span><p>Made to fit your life.<br/>Custom stitching and alterations, right to your door.</p></div><div><strong>Explore</strong><a href="/services">Our services</a><a href="/tailors">Find a tailor</a><a href="/tailor/onboarding">Partner with us</a></div><div><strong>Help</strong><a href="/help">How it works & policies</a><a href="/profile">Your account</a><a href="/orders">Track an order</a></div></div><div className="container foot-bottom">© 2026 StitchMate. Pilot service area: selected Delhi NCR pincodes. All orders require an approved tailor quote.</div></footer></AuthProvider></body></html>}
+
+export const metadata:Metadata={
+ title:'StitchMate | Tailoring at your doorstep',
+ description:'Find verified local tailors for custom stitching and clothing alterations. We pick up and deliver your garments.'
+};
+
+export default function RootLayout({children}:{children:React.ReactNode}){
+ return <html lang="en"><body><AuthProvider><Nav/>
+  {process.env.NEXT_PUBLIC_STITCHMATE_STAGE==='true'&&<div role="status" className="staging-banner">STITCHMATE STAGING DEMO — No real payments, OTPs or deliveries. Test data only.</div>}
+  <main id="main-content">{children}</main>
+  <footer className="footer">
+    <div className="container footer-main">
+     <div className="footer-intro">
+      <Link href="/" className="brand footer-brand"><span className="brand-icon"><Scissors size={21}/></span><span className="brand-wordmark">stitch<span className="brand-accent">mate</span><span className="brand-dot">.</span></span></Link>
+      <p>Good tailoring should feel effortless. We bring local craftsmanship, thoughtful fitting and doorstep convenience together.</p>
+      <div className="footer-trust"><span><ShieldCheck size={15}/> Verified local tailors</span><span><Truck size={15}/> Two-way delivery</span></div>
+     </div>
+     <div className="footer-column"><h3>Discover</h3><Link href="/services">Our services</Link><Link href="/gigs">Tailoring gigs</Link><Link href="/tailors">Find a tailor</Link></div>
+     <div className="footer-column"><h3>Your StitchMate</h3><Link href="/orders">Track an order</Link><Link href="/measurements">Measurements</Link><Link href="/profile">Your account</Link></div>
+     <div className="footer-column"><h3>For partners</h3><Link href="/tailor/onboarding">Become a tailor</Link><Link href="/delivery">Deliver with us</Link><Link href="/help">Help & policies</Link></div>
+    </div>
+    <div className="container footer-bottom"><span>© {new Date().getFullYear()} StitchMate. Made to fit your life.</span><span>Currently serving selected Delhi NCR pincodes · <Link href="/help">Policies <ArrowUpRight size={13}/></Link></span></div>
+  </footer>
+ </AuthProvider></body></html>;
+}

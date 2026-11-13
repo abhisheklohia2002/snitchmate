@@ -1,0 +1,48 @@
+name: StitchMate responsive UI smoke
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      UI_PLAYWRIGHT_ROOT: /tmp/stitchmate-playwright
+      NEXT_PUBLIC_API_URL: /api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @stitchmate/web build
+      - name: Install isolated Chromium test runner
+        run: |
+          mkdir -p "$UI_PLAYWRIGHT_ROOT"
+          npm install --prefix "$UI_PLAYWRIGHT_ROOT" --no-save --no-package-lock playwright@1.56.1
+          "$UI_PLAYWRIGHT_ROOT/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Start frontend
+        run: |
+          PORT=3000 pnpm --filter @stitchmate/web exec next start -H 0.0.0.0 -p 3000 > /tmp/stitchmate-ui-next.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 2 http://127.0.0.1:3000/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/stitchmate-ui-next.log
+          exit 1
+      - name: Check responsive UI at five viewports and six app routes
+        run: node apps/web/test/ui-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stitchmate-responsive-ui
+          path: artifacts/ui-screenshots/
+          retention-days: 3
