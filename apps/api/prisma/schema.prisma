@@ -24,6 +24,7 @@ model User {
   orders              Order[]
   measurementProfiles MeasurementProfile[]
   files               UploadedFile[]
+  inAppNotifications  InAppNotification[]
 }
 model UserRole {
   id        String   @id @default(uuid()) @db.Uuid
@@ -510,4 +511,22 @@ model DeliveryPartner {
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([status,servicePincode,available])
+}
+
+
+/// In-app user-specific feed; written only by domain-data triggers.
+model InAppNotification {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  eventKey   String
+  kind       String
+  title      String
+  body       String
+  href       String?
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  user       User      @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@unique([userId,eventKey])
+  @@index([userId,createdAt(sort: Desc),id(sort: Desc)])
+  @@index([userId,readAt,createdAt(sort: Desc)])
 }
