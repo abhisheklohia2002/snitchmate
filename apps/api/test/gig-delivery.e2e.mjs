@@ -8,7 +8,7 @@ const base = 'http://127.0.0.1:4010/api/v1';
 const origin = 'http://localhost:3000';
 let checks = 0;
 const note = message => { checks++; console.log('PASS ' + checks + ': ' + message); };
-async function request(method,path,body,account,expected=200) {
+async function request(method,path,body,account,expected=method==='POST'?201:200) {
   const res = await fetch(base+path,{
     method,
     headers:{
