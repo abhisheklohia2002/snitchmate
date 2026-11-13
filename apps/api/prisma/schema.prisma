@@ -461,6 +461,7 @@ model Gig {
   slug        String          @unique
   title       String
   description String
+  imageRightsConfirmed Boolean @default(false)
   status      String          @default("DRAFT")
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

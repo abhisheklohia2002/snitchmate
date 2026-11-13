@@ -19,7 +19,7 @@ export default function TailorGigs(){
  async function attach(fs:FileList|null){if(!fs)return;setBusy(true);setErr('');try{for(const file of Array.from(fs).slice(0,Math.max(0,6-imageIds.length))){const id=await upload(file,'DESIGN');setImageIds(x=>[...x,id]);}}catch(e){setErr((e as Error).message);}finally{setBusy(false);}}
  async function create(e:React.FormEvent){e.preventDefault();setBusy(true);setErr('');setMsg('');
   try{if(!selected)throw new Error('Create a tailor shop first');if(imageIds.length&&!rights)throw new Error('Confirm you own the gallery photos and have permission to publish them');
-   const input={tailorId:selected.id,categoryId:category,title,description:desc,imageFileIds:imageIds,
+   const input={tailorId:selected.id,categoryId:category,title,description:desc,imageFileIds:imageIds,imageRightsConfirmed:rights,
     packages:tiers.filter(t=>packages[t].enabled).map(t=>({tier:t,title:packages[t].title,description:packages[t].description,pricePaise:String(Math.round(Number(packages[t].price)*100)),deliveryDays:Number(packages[t].days),revisions:Number(packages[t].revisions)}))};
    await post('/gigs',input);refresh();setMsg('Gig saved as draft. Publish after reviewing it.');setTitle('');setDesc('');setImageIds([]);setRights(false);
   }catch(e){setErr((e as Error).message);}finally{setBusy(false);}

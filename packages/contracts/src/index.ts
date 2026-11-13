@@ -22,6 +22,7 @@ export const gigInputSchema=z.object({
  categoryId:z.string().uuid(),
  title:z.string().trim().min(8).max(110),
  description:z.string().trim().min(40).max(4000),
+ imageRightsConfirmed:z.boolean().default(false),
  packages:z.array(gigPackageSchema).min(1).max(3)
   .refine(p=>new Set(p.map(v=>v.tier)).size===p.length,{message:'Duplicate package tiers'})
   .refine(p=>p.some(v=>v.tier==='BASIC'),{message:'A Basic package is required'}),

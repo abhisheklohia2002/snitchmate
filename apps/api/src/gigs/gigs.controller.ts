@@ -1,14 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, Res } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Db } from '../core/db';
 import { AuthService } from '../auth/auth.service';
 import { must, parse } from '../core/http';
 import { gigInputSchema } from '@stitchmate/contracts';
 
 const uuid=z.string().uuid();
-const editSchema=gigInputSchema.omit({tailorId:true});
+const s3=new S3Client({region:process.env.AWS_REGION??'us-east-1',endpoint:process.env.S3_ENDPOINT||undefined,forcePathStyle:process.env.S3_FORCE_PATH_STYLE==='true',credentials:process.env.S3_ACCESS_KEY_ID&&process.env.S3_SECRET_ACCESS_KEY?{accessKeyId:process.env.S3_ACCESS_KEY_ID,secretAccessKey:process.env.S3_SECRET_ACCESS_KEY}:undefined});
+const editSchema=gigInputSchema;
 const published={status:'PUBLISHED',tailor:{status:'APPROVED'}} as const;
 const packageSelect={tier:true,title:true,description:true,pricePaise:true,deliveryDays:true,revisions:true,expressDays:true,expressPricePaise:true} as const;
 const gigInclude={
@@ -47,6 +50,15 @@ export class GigsController {
   const actor=await this.auth.require(req);
   return this.db.gig.findMany({where:{tailor:{ownerId:actor.id}},include:gigInclude,orderBy:{createdAt:'desc'}});
  }
+ @Get(':slug/images/:fileId') async photo(@Param('slug') slug:string,@Param('fileId') fileId:string,@Res() res:Response){
+  const gig=await this.db.gig.findUnique({where:{slug},include:{tailor:true,images:{where:{fileId:parse(uuid,fileId)},include:{file:true}}}});
+  must(gig?.status==='PUBLISHED'&&gig.tailor.status==='APPROVED'&&gig.imageRightsConfirmed,'Image not published','notfound');
+  const image=gig.images[0]?.file;
+  must(image?.status==='VERIFIED'&&image.mimeType.startsWith('image/'),'Gallery image not found','notfound');
+  const url=await getSignedUrl(s3,new GetObjectCommand({Bucket:process.env.S3_BUCKET??'stitchmate-private',Key:image.storageKey}),{expiresIn:90});
+  res.setHeader('Cache-Control','public, max-age=60');
+  res.redirect(302,url);
+ }
  @Get(':slug') async detail(@Param('slug') slug:string) {
   const gig=await this.db.gig.findUnique({where:{slug},include:{...gigInclude,orders:{where:{review:{isNot:null}},select:{review:{select:{score:true,text:true,createdAt:true}}},take:100,orderBy:{createdAt:'desc'}}}});
   must(gig?.status==='PUBLISHED'&&gig.tailor.status==='APPROVED','Gig unavailable','notfound');
@@ -61,7 +73,7 @@ export class GigsController {
   await this.gallery(actor.id,input.imageFileIds);
   const slug=input.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,70)+'-'+randomUUID().slice(0,8);
   const result=await this.db.gig.create({data:{
-    tailorId:input.tailorId,categoryId:input.categoryId,title:input.title,description:input.description,slug,
+    tailorId:input.tailorId,categoryId:input.categoryId,title:input.title,description:input.description,slug,imageRightsConfirmed:input.imageRightsConfirmed,
     packages:{create:input.packages.map(p=>({...p,pricePaise:BigInt(p.pricePaise),expressPricePaise:p.expressPricePaise?BigInt(p.expressPricePaise):null}))},
     images:{create:input.imageFileIds.map((fileId,position)=>({fileId,position}))}
   },include:gigInclude});
@@ -72,6 +84,7 @@ export class GigsController {
   const actor=await this.auth.require(req),input=parse(editSchema,body),gigId=parse(uuid,id);
   const gig=await this.db.gig.findUnique({where:{id:gigId},include:{tailor:true}});
   must(gig&&gig.tailor.ownerId===actor.id,'Gig not found','notfound');
+  must(input.tailorId===gig.tailorId,'Cannot move gig between shops','conflict');
   must(gig.status!=='PUBLISHED','Pause a published gig before modifying it','conflict');
   await this.ownership(actor.id,gig.tailorId,input.categoryId);
   await this.gallery(actor.id,input.imageFileIds);
@@ -79,7 +92,7 @@ export class GigsController {
     await tx.gigPackage.deleteMany({where:{gigId}});
     await tx.gigImage.deleteMany({where:{gigId}});
     return tx.gig.update({where:{id:gigId},data:{
-      title:input.title,description:input.description,categoryId:input.categoryId,
+      title:input.title,description:input.description,categoryId:input.categoryId,imageRightsConfirmed:input.imageRightsConfirmed,
       packages:{create:input.packages.map(p=>({...p,pricePaise:BigInt(p.pricePaise),expressPricePaise:p.expressPricePaise?BigInt(p.expressPricePaise):null}))},
       images:{create:input.imageFileIds.map((fileId,position)=>({fileId,position}))}
     },include:gigInclude});
@@ -91,6 +104,7 @@ export class GigsController {
   must(gig&&gig.tailor.ownerId===actor.id,'Gig not found','notfound');
   must(gig.tailor.status==='APPROVED','Admin must approve your shop first','conflict');
   must(gig.packages.some(p=>p.tier==='BASIC'),'Gig must have a Basic package','conflict');
+  must(gig.imageRightsConfirmed||!await this.db.gigImage.count({where:{gigId:gig.id}}),'Photo publishing permission is required','conflict');
   const data=await this.db.gig.update({where:{id:gig.id},data:{status:'PUBLISHED'}});
   await this.db.auditLog.create({data:{actorId:actor.id,action:'GIG_PUBLISHED',resource:'GIG',resourceId:gig.id}});
   return data;

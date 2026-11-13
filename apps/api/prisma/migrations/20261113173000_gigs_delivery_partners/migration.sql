@@ -2,7 +2,7 @@
 ALTER TABLE "Order" ADD COLUMN "gigId" UUID, ADD COLUMN "gigTier" TEXT, ADD COLUMN "gigPackagePricePaise" BIGINT;
 CREATE TABLE "Gig" (
  "id" UUID NOT NULL, "tailorId" UUID NOT NULL, "categoryId" UUID NOT NULL,
- "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "description" TEXT NOT NULL,
+ "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "description" TEXT NOT NULL, "imageRightsConfirmed" BOOLEAN NOT NULL DEFAULT false,
  "status" TEXT NOT NULL DEFAULT 'DRAFT',
  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
  "updatedAt" TIMESTAMP(3) NOT NULL,
