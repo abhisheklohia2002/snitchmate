@@ -76,7 +76,7 @@ export class DeliveryPartnersController {
     id:true,direction:true,status:true,packageId:true,scheduledAt:true,sealId:true,attempts:true,
     order:{select:{orderNumber:true,tailor:{select:{shopName:true,address:true,pincode:true}},
     pickupAddress:{select:{name:true,phone:true,line1:true,city:true,pincode:true}},
-    returnAddress:{select:{name:true,phone:true,line1:true,city:true,pincode:true}}}},
+    returnAddress:{select:{name:true,phone:true,line1:true,city:true,pincode:true}},items:{select:{quantity:true}}}},
     handoffs:{select:{step:true,occurredAt:true}}
   },orderBy:{createdAt:'desc'},take:100});
  }
