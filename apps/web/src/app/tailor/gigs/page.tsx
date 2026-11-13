@@ -1,5 +1,7 @@
 'use client';
 import {useState} from 'react';
+import {Input,Select,Upload,Checkbox} from 'antd';
+import {UploadCloud} from 'lucide-react';
 import {Portal} from '@/components/Portal';
 import {PageTitle,useLoad,Alert,Category} from '@/components/Shared';
 import {post,upload,money} from '@/lib/api';
@@ -34,10 +36,10 @@ export default function TailorGigs(){
   </section>
   <form className="card" style={{marginTop:20}} onSubmit={create}>
    <h3>Create a new gig</h3>
-   <label>Tailor shop<select value={selected?.id||''} onChange={e=>{setShop(e.target.value);setCategory('');}}>{shops?.map(t=><option key={t.id} value={t.id}>{t.shopName} ({t.status})</option>)}</select></label>
-   <label>Service category<select value={category} onChange={e=>setCategory(e.target.value)} required><option value="">Choose service</option>{selected?.services.map(s=><option key={s.categoryId} value={s.categoryId}>{s.category.title}</option>)}</select></label>
-   <label>Gig title<input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Premium designer blouse stitching" minLength={8} required/></label>
-   <label>Description<textarea value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Describe fabric, measurements, fitting, finishing, inclusions…" minLength={40} required/></label>
+   <label>Tailor shop<Select value={selected?.id||undefined} onChange={value=>{setShop(value);setCategory("");}} options={shops?.map(t=>({value:t.id,label:t.shopName+" ("+t.status+")"}))??[]} placeholder="Choose your shop"/></label>
+   <label>Service category<Select showSearch optionFilterProp="label" value={category||undefined} onChange={setCategory} placeholder="Choose service" options={selected?.services.map(s=>({value:s.categoryId,label:s.category.title}))??[]}/></label>
+   <label>Gig title<Input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Premium designer blouse stitching" minLength={8} required/></label>
+   <label>Description<Input.TextArea rows={4} value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Describe fabric, measurements, fitting, finishing, inclusions…" minLength={40} required/></label>
    <h3 style={{marginTop:22}}>Service packages</h3>
    {tiers.map(t=><div key={t} className="card" style={{marginTop:12,background:'var(--cream)'}}>
     <label style={{display:'flex',alignItems:'center',gap:8}}><input type="checkbox" style={{width:18}} disabled={t==='BASIC'} checked={packages[t].enabled} onChange={e=>setPackages(x=>({...x,[t]:{...x[t],enabled:e.target.checked}}))}/> {t}</label>
@@ -47,9 +49,9 @@ export default function TailorGigs(){
      <label>Turnaround (days)<input type="number" min={1} value={packages[t].days} onChange={e=>setPackages(x=>({...x,[t]:{...x[t],days:e.target.value}}))}/></label>
      <label>Included revisions<input type="number" min={0} value={packages[t].revisions} onChange={e=>setPackages(x=>({...x,[t]:{...x[t],revisions:e.target.value}}))}/></label></div></>}
    </div>)}
-   <label>Portfolio photos (up to 6)<input type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={e=>attach(e.target.files)}/></label>
+   <label>Portfolio photos (up to 6)<Upload multiple accept="image/png,image/jpeg,image/webp" showUploadList={false} beforeUpload={file=>{const files={length:1,item:()=>file,0:file} as unknown as FileList;void attach(files);return Upload.LIST_IGNORE;}}><button className="btn secondary small" type="button"><UploadCloud size={16}/> Upload photo</button></Upload></label>
    <p className="small-note">{imageIds.length} uploaded. Only publish work you have permission to show.</p>
-   <label style={{display:'flex',gap:10,alignItems:'center'}}><input type="checkbox" style={{width:18}} checked={rights} onChange={e=>setRights(e.target.checked)}/> I own or have permission to publish all uploaded portfolio images.</label>
+   <label className="stitch-ant-checkbox"><Checkbox checked={rights} onChange={e=>setRights(e.target.checked)}>I own or have permission to publish all uploaded portfolio images.</Checkbox></label>
    <button className="btn" disabled={busy||!selected||!category}>{busy?'Saving…':'Save gig as draft'}</button>
   </form>
  </Portal>;

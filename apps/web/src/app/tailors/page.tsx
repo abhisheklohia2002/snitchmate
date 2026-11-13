@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import {Input} from 'antd';
 import {useState} from 'react';
 import {MapPin,Clock3,Scissors,LocateFixed} from 'lucide-react';
 import {money} from '@/lib/api';
@@ -25,7 +26,7 @@ export default function Tailors(){
   <PageTitle eyebrow="Meet the makers" title="Find your perfect tailor" lead="See approved local specialists on a real map, compare stitching services, and book doorstep collection."/>
   <div className="card" style={{marginBottom:24}}>
    <form onSubmit={e=>{e.preventDefault();if(/^\d{6}$/.test(pin)){setSearch(pin);setLocalError('');}else setLocalError('Enter a valid 6-digit Indian pincode.');}} className="form-actions" style={{alignItems:'end'}}>
-    <label style={{flex:'1 1 210px',margin:0}}>Your pickup pincode<input maxLength={6} inputMode="numeric" placeholder="Enter 6-digit pincode" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))}/></label>
+    <label style={{flex:'1 1 210px',margin:0}}>Your pickup pincode<Input maxLength={6} inputMode="numeric" placeholder="Enter 6-digit pincode" value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,''))}/></label>
     <button className="btn" type="submit">Find tailors</button>
     <button className="btn secondary" type="button" onClick={getLocation} disabled={locating}><LocateFixed size={16}/>{locating?'Locating…':'Within 7 km of me'}</button>
     {location&&<button type="button" className="link-button" onClick={()=>setLocation(null)}>Clear location</button>}
