@@ -53,10 +53,12 @@ export class LogisticsController {
   await this.db.auditLog.create({data:{actorId:actor.id,action:'HANDOFF_OTP_SENT',resource:'LOGISTICS',resourceId:id,context:{step:input.step}}});
   return {sent:true,expiresInSeconds:600};
  }
+ @Post('courier/jobs/:id/handoffs')
  @Post('admin/logistics/jobs/:id/handoffs') async handoff(@Req() req:Request,@Param('id') id:string,@Body() body:unknown){
-  const actor=await this.auth.require(req,['admin']);const input=parse(proofSchema,body);
+  const actor=await this.auth.require(req,['admin','courier']);const input=parse(proofSchema,body);
   const job=await this.db.logisticsJob.findUnique({where:{id},include:{order:{include:{items:true}}}});must(job,'Job not found','notfound');
   must(job.courierId,'Courier assignment required','conflict');
+  if(!actor.roles.includes('admin'))must(job.courierId===actor.id,'This delivery is not assigned to you','forbidden');
   const existing=await this.db.logisticsHandoff.findFirst({where:{jobId:id,step:input.step}});must(!existing,'Handoff has already been confirmed','conflict');
   const correctStep=input.step==='SENDER_PICKUP'?job.status==='ASSIGNED':job.status==='PICKED_UP';must(correctStep,'Handoff step out of sequence','conflict');
   const expected=job.order.items.reduce((s,item)=>s+item.quantity,0);
