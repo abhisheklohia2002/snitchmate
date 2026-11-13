@@ -43,7 +43,7 @@ function Screen(){
     <div className="price-row"><strong>{j.order.orderNumber}</strong><span className="pill">{textStatus(j.status)}</span></div>
     <p>{dest(j)} · Parcel {j.packageId}</p><p className="small-note">{j.scheduledAt?dateTime(j.scheduledAt):'Time assigned by operations'}</p>
     <p><strong>Workshop:</strong> {j.order.tailor.shopName}, {j.order.tailor.address}</p>
-    <p><strong>Customer:</strong> {j.order.pickupAddress.name}, {j.order.pickupAddress.line1}, {j.order.pickupAddress.city} · {j.order.pickupAddress.phone}</p>
+    <p><strong>Customer:</strong> {j.direction==='INBOUND'||j.direction==='REWORK_INBOUND'?j.order.pickupAddress.name:j.order.returnAddress.name}, {j.direction==='INBOUND'||j.direction==='REWORK_INBOUND'?j.order.pickupAddress.line1:j.order.returnAddress.line1}, {j.direction==='INBOUND'||j.direction==='REWORK_INBOUND'?j.order.pickupAddress.city:j.order.returnAddress.city} · {j.direction==='INBOUND'||j.direction==='REWORK_INBOUND'?j.order.pickupAddress.phone:j.order.returnAddress.phone}</p>
     {['ASSIGNED','PICKED_UP'].includes(j.status)&&(()=>{
      const step=j.status==='ASSIGNED'?'SENDER_PICKUP':'RECIPIENT_DROPOFF';
      const count=j.order.items.reduce((n,item)=>n+item.quantity,0);

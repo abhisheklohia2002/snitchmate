@@ -1,0 +1,59 @@
+# Free isolated staging using the existing Render PostgreSQL INSTANCE.
+# A dedicated Prisma schema keeps all migrations and data outside live public.
+# NEVER adopt the live web/API services into this Blueprint.
+services:
+  - type: web
+    name: stitchmate-gigs-staging-api
+    runtime: node
+    plan: free
+    region: singapore
+    repo: https://github.com/abhisheklohia2002/snitchmate
+    branch: feature/gigs-delivery-marketplace-20261113
+    autoDeployTrigger: off
+    buildCommand: corepack enable && corepack prepare pnpm@10.8.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @stitchmate/contracts build && pnpm --filter @stitchmate/domain build && pnpm --filter @stitchmate/api prisma:generate && pnpm --filter @stitchmate/api build
+    startCommand: node scripts/start-staging-api.cjs
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: STITCHMATE_STAGING_DB_BASE_URL
+        fromDatabase:
+          name: stitchmate-db-free
+          property: connectionString
+      - key: DATABASE_URL
+        value: postgresql://build:build@127.0.0.1:5432/build?schema=stitchmate_gigs_staging
+      - key: NODE_ENV
+        value: development
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OTP_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        value: https://stitchmate-gigs-staging-web.onrender.com
+      - key: MOCK_OTP_ENABLED
+        value: "true"
+      - key: SMS_PROVIDER
+        value: mock
+      - key: MOCK_PAYMENT_ENABLED
+        value: "true"
+      - key: ENABLE_DEMO_PAYMENT_CONFIRM
+        value: "true"
+      - key: PILOT_PINCODES
+        value: "110086,110081,110042"
+  - type: web
+    name: stitchmate-gigs-staging-web
+    runtime: node
+    plan: free
+    region: singapore
+    repo: https://github.com/abhisheklohia2002/snitchmate
+    branch: feature/gigs-delivery-marketplace-20261113
+    autoDeployTrigger: off
+    buildCommand: corepack enable && corepack prepare pnpm@10.8.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @stitchmate/web build
+    startCommand: pnpm --filter @stitchmate/web exec next start -H 0.0.0.0 -p $PORT
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: /api/v1
+      - key: STITCHMATE_API_PUBLIC_ORIGIN
+        value: https://stitchmate-gigs-staging-api.onrender.com
+      - key: NEXT_PUBLIC_STITCHMATE_STAGE
+        value: "true"
+      - key: NEXT_PUBLIC_OTP_CHANNEL
+        value: demo
