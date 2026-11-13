@@ -1,0 +1,82 @@
+name: Gig and Delivery E2E (isolated Postgres)
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: stitchmate_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d stitchmate_e2e"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e?schema=public
+      NODE_ENV: development
+      WEB_ORIGIN: http://localhost:3000
+      PORT: "4010"
+      SESSION_SECRET: ci-only-session-secret-12345678901234567890
+      OTP_SECRET: ci-only-otp-secret-12345678901234567890
+      MOCK_OTP_ENABLED: "true"
+      SMS_PROVIDER: mock
+      MOCK_PAYMENT_ENABLED: "true"
+      ENABLE_DEMO_PAYMENT_CONFIRM: "true"
+      AWS_REGION: us-east-1
+      S3_BUCKET: ci-fixture-no-real-upload
+      S3_ACCESS_KEY_ID: ci-not-real
+      S3_SECRET_ACCESS_KEY: ci-not-real
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @stitchmate/api prisma:generate
+      - run: pnpm --filter @stitchmate/contracts build && pnpm --filter @stitchmate/domain build && pnpm --filter @stitchmate/api build
+      - name: Apply all migrations on disposable PostgreSQL
+        run: pnpm --filter @stitchmate/api prisma:deploy
+      - name: Seed disposable test DB
+        run: pnpm --filter @stitchmate/api prisma:seed
+      - name: Boot real API
+        run: |
+          pnpm --filter @stitchmate/api start > /tmp/stitchmate-e2e-api.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS --max-time 1 http://127.0.0.1:4010/api/v1/health; then exit 0; fi
+            sleep 1
+          done
+          echo "API failed to start"
+          tail -n 60 /tmp/stitchmate-e2e-api.log
+          exit 1
+      - name: Run actual gig booking and both delivery legs through HTTP
+        run: pnpm --filter @stitchmate/api exec node test/gig-delivery.e2e.mjs
+      - name: Verify staging entrypoint isolates database schema
+        run: |
+          STITCHMATE_STAGING_DB_BASE_URL="postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e" PORT=4020 node scripts/start-staging-api.cjs > /tmp/stitchmate-stage-check.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS --max-time 1 http://127.0.0.1:4020/api/v1/health; then break; fi
+            sleep 1
+          done
+          curl -fsS --max-time 3 http://127.0.0.1:4020/api/v1/health
+          DATABASE_URL="postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e?schema=stitchmate_gigs_staging" pnpm --filter @stitchmate/api exec node -e 'const {PrismaClient}=require("@prisma/client");const db=new PrismaClient();db.gig.count().then(n=>{if(n<1)process.exitCode=1;else console.log("Staging schema contains demo gigs:",n)}).finally(()=>db.$disconnect())'
+          DATABASE_URL="postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e?schema=public" pnpm --filter @stitchmate/api exec node -e 'const {PrismaClient}=require("@prisma/client");const db=new PrismaClient();db.gig.count().then(n=>{if(n!==1)process.exitCode=1;else console.log("Live/public schema remains independently addressable")}).finally(()=>db.$disconnect())'
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          sed -E 's/(\[DEV ONLY\].*: )[0-9]{6}/\1[REDACTED]/g' /tmp/stitchmate-e2e-api.log | tail -n 100 || true

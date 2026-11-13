@@ -10,3 +10,5 @@
 .stitchmate-map .leaflet-popup-content p{margin:6px 0;}
 .stitchmate-map .leaflet-popup-content a{color:var(--pine);font-weight:700;text-decoration:underline;}
 @media(max-width:690px){.stitchmate-map{height:310px;}}
+
+.gig-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}.gig-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px}

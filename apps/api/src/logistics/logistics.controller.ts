@@ -30,10 +30,12 @@ export class LogisticsController {
   await this.db.auditLog.create({data:{actorId:actor.id,action:'COURIER_ASSIGNED',resource:'LOGISTICS',resourceId:id,context:{courierId:input.courierId}}});return updated;
  }
  @Get('courier/jobs') async courierJobs(@Req() req:Request){const actor=await this.auth.require(req,['courier']);return this.db.logisticsJob.findMany({where:{courierId:actor.id},select:{id:true,direction:true,status:true,packageId:true,scheduledAt:true,order:{select:{orderNumber:true,tailor:{select:{shopName:true,address:true}},pickupAddress:{select:{name:true,phone:true,line1:true,city:true,pincode:true}},returnAddress:{select:{name:true,phone:true,line1:true,city:true,pincode:true}}}}}});}
+ @Post('courier/jobs/:id/otp')
  @Post('admin/logistics/jobs/:id/otp') async issue(@Req() req:Request,@Param('id') id:string,@Body() body:unknown){
-  const actor=await this.auth.require(req,['admin']);const input=parse(z.object({step:z.enum(['SENDER_PICKUP','RECIPIENT_DROPOFF'])}),body);
+  const actor=await this.auth.require(req,['admin','courier']);const input=parse(z.object({step:z.enum(['SENDER_PICKUP','RECIPIENT_DROPOFF'])}),body);
   const job=await this.db.logisticsJob.findUnique({where:{id},include:{order:{include:{customer:true,tailor:{include:{owner:true}}}}}});must(job,'Job not found','notfound');
   must(job.courierId,'Assign a courier before issuing OTP','conflict');
+  if(!actor.roles.includes('admin'))must(job.courierId===actor.id,'This delivery is not assigned to you','forbidden');
   must(['ASSIGNED','PICKED_UP'].includes(job.status),'Job is not ready for verification','conflict');
   must(input.step===(job.status==='ASSIGNED'?'SENDER_PICKUP':'RECIPIENT_DROPOFF'),
    'The handoff step does not match the current courier stage','conflict');
@@ -53,10 +55,12 @@ export class LogisticsController {
   await this.db.auditLog.create({data:{actorId:actor.id,action:'HANDOFF_OTP_SENT',resource:'LOGISTICS',resourceId:id,context:{step:input.step}}});
   return {sent:true,expiresInSeconds:600};
  }
+ @Post('courier/jobs/:id/handoffs')
  @Post('admin/logistics/jobs/:id/handoffs') async handoff(@Req() req:Request,@Param('id') id:string,@Body() body:unknown){
-  const actor=await this.auth.require(req,['admin']);const input=parse(proofSchema,body);
+  const actor=await this.auth.require(req,['admin','courier']);const input=parse(proofSchema,body);
   const job=await this.db.logisticsJob.findUnique({where:{id},include:{order:{include:{items:true}}}});must(job,'Job not found','notfound');
   must(job.courierId,'Courier assignment required','conflict');
+  if(!actor.roles.includes('admin'))must(job.courierId===actor.id,'This delivery is not assigned to you','forbidden');
   const existing=await this.db.logisticsHandoff.findFirst({where:{jobId:id,step:input.step}});must(!existing,'Handoff has already been confirmed','conflict');
   const correctStep=input.step==='SENDER_PICKUP'?job.status==='ASSIGNED':job.status==='PICKED_UP';must(correctStep,'Handoff step out of sequence','conflict');
   const expected=job.order.items.reduce((s,item)=>s+item.quantity,0);

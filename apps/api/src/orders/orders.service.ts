@@ -56,6 +56,18 @@ export class OrdersService {
   const categories=await this.db.serviceCategory.findMany({where:{id:{in:categoryIds},active:true,serviceType:data.serviceType}});
   must(categories.length===categoryIds.length,'An item category does not match your service type');
   must(categoryIds.every(id=>tailor.services.some(s=>s.categoryId===id&&s.active)),'Tailor does not offer a selected service');
+  must(!data.gigTier||!!data.gigId,'A gig package requires a gig');
+  let selectedGig: {id:string;packageTier:string;pricePaise:bigint}|null=null;
+  if(data.gigId) {
+   must(data.gigTier,'Select a gig package tier');
+   const gig=await this.db.gig.findUnique({where:{id:data.gigId},include:{category:true,packages:true}});
+   must(gig?.status==='PUBLISHED'&&gig.tailorId===tailor.id,'The selected gig is unavailable','conflict');
+   must(data.items.length===1&&data.items[0]?.categoryId===gig.categoryId &&
+    data.serviceType===gig.category.serviceType,'The selected gig does not match your garment order','conflict');
+   const tier=gig.packages.find(p=>p.tier===data.gigTier);
+   must(tier,'The selected package no longer exists','conflict');
+   selectedGig={id:gig.id,packageTier:tier.tier,pricePaise:tier.pricePaise};
+  }
   const measurementIds=[...new Set(data.items.map(i=>i.measurementVersionId).filter((x):x is string=>!!x))];
   const versions=await this.db.measurementVersion.findMany({where:{id:{in:measurementIds},profile:{userId:actor.id}}});
   must(versions.length===measurementIds.length,'One or more measurement profiles are unavailable');
@@ -67,7 +79,7 @@ export class OrdersService {
    return requiredMaterialReady(data.serviceType,{hasMeasurement:!!i.measurementVersionId,hasSample:i.hasFittingSample??false,hasReference:!!i.instructions?.trim()||associated.some(f=>f.purpose==='DESIGN'),hasBeforePhoto:associated.some(f=>f.purpose==='BEFORE'),hasInstructions:!!i.instructions?.trim()});
   });
   must(valid,data.serviceType==='CUSTOM_STITCHING'?'Provide a style description/reference and measurements or a sample garment':'Provide before photos and specific alteration instructions');
-  return this.db.order.create({data:{orderNumber:orderNumber(),customerId:actor.id,tailorId:tailor.id,pickupAddressId:pickup.id,returnAddressId:returnAddress.id,serviceType:data.serviceType,items:{create:data.items.map(i=>({categoryId:i.categoryId,quantity:i.quantity,design:(i.design??{}) as Prisma.InputJsonValue,material:(i.material??{}) as Prisma.InputJsonValue,instructions:i.instructions,measurementVersionId:i.measurementVersionId??null,hasFittingSample:i.hasFittingSample??false,fileIds:(i.fileIds??[]) as Prisma.InputJsonValue}))}},include:{items:true}});
+  return this.db.order.create({data:{orderNumber:orderNumber(),customerId:actor.id,tailorId:tailor.id,pickupAddressId:pickup.id,returnAddressId:returnAddress.id,serviceType:data.serviceType,gigId:selectedGig?.id,gigTier:selectedGig?.packageTier,gigPackagePricePaise:selectedGig?.pricePaise,items:{create:data.items.map(i=>({categoryId:i.categoryId,quantity:i.quantity,design:(i.design??{}) as Prisma.InputJsonValue,material:(i.material??{}) as Prisma.InputJsonValue,instructions:i.instructions,measurementVersionId:i.measurementVersionId??null,hasFittingSample:i.hasFittingSample??false,fileIds:(i.fileIds??[]) as Prisma.InputJsonValue}))}},include:{items:true}});
  }
  async requestQuote(actor:Actor,id:string){
   const order=await this.visible(id,actor);must(order.customerId===actor.id,'Only the customer can request a quotation','forbidden');

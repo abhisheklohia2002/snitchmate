@@ -20,6 +20,7 @@ model User {
   otpChallenges       OtpChallenge[]
   addresses           Address[]
   ownedTailors        Tailor[]
+  deliveryPartner     DeliveryPartner?
   orders              Order[]
   measurementProfiles MeasurementProfile[]
   files               UploadedFile[]
@@ -105,6 +106,7 @@ model Tailor {
   updatedAt          DateTime          @updatedAt
   owner              User              @relation(fields:[ownerId],references:[id])
   services           TailorService[]
+  gigs               Gig[]
   portfolio          TailorPortfolio[]
   zones              TailorZone[]
   orders             Order[]
@@ -132,6 +134,7 @@ model ServiceCategory {
   active                 Boolean         @default(true)
   createdAt              DateTime        @default(now())
   services               TailorService[]
+  gigs                   Gig[]
   items                  OrderItem[]
   portfolio              TailorPortfolio[]
 }
@@ -192,6 +195,7 @@ model UploadedFile {
   status     String    @default("PENDING")
   createdAt  DateTime  @default(now())
   owner      User      @relation(fields:[ownerId],references:[id])
+  gigImages GigImage[]
   @@index([ownerId,status])
 }
 model Order {
@@ -202,6 +206,10 @@ model Order {
   pickupAddressId   String           @db.Uuid
   returnAddressId   String           @db.Uuid
   serviceType       String
+  gigId             String?          @db.Uuid
+  gigTier           String?
+  gigPackagePricePaise BigInt?
+  gig               Gig?             @relation(fields:[gigId],references:[id],onDelete:SetNull)
   status            String           @default("DRAFT")
   paymentStatus     String           @default("NOT_INITIATED")
   acceptedQuoteId   String?          @db.Uuid
@@ -221,6 +229,7 @@ model Order {
   payout            TailorPayout?
   review            Review?
   refunds           Refund[]
+  @@index([gigId,createdAt(sort: Desc)])
   @@index([customerId,createdAt(sort: Desc)])
   @@index([tailorId,status,createdAt(sort: Desc)])
 }
@@ -443,4 +452,62 @@ model Refund {
   updatedAt       DateTime @updatedAt
   order           Order    @relation(fields:[orderId],references:[id],onDelete:Restrict)
   @@index([orderId,status])
+}
+
+model Gig {
+  id          String          @id @default(uuid()) @db.Uuid
+  tailorId    String          @db.Uuid
+  categoryId  String          @db.Uuid
+  slug        String          @unique
+  title       String
+  description String
+  imageRightsConfirmed Boolean @default(false)
+  status      String          @default("DRAFT")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tailor      Tailor          @relation(fields:[tailorId],references:[id],onDelete:Cascade)
+  category    ServiceCategory @relation(fields:[categoryId],references:[id])
+  packages    GigPackage[]
+  images      GigImage[]
+  orders      Order[]
+  @@index([tailorId,status])
+  @@index([status,categoryId,createdAt])
+}
+model GigPackage {
+  id                String   @id @default(uuid()) @db.Uuid
+  gigId             String   @db.Uuid
+  tier              String
+  title             String
+  description       String
+  pricePaise        BigInt
+  deliveryDays      Int
+  revisions         Int      @default(0)
+  expressPricePaise BigInt?
+  expressDays       Int?
+  gig               Gig      @relation(fields:[gigId],references:[id],onDelete:Cascade)
+  @@unique([gigId,tier])
+}
+model GigImage {
+  id        String @id @default(uuid()) @db.Uuid
+  gigId     String @db.Uuid
+  fileId    String @db.Uuid
+  position  Int    @default(0)
+  gig       Gig @relation(fields:[gigId],references:[id],onDelete:Cascade)
+  file      UploadedFile @relation(fields:[fileId],references:[id],onDelete:Restrict)
+  @@unique([gigId,fileId])
+  @@index([gigId,position])
+}
+model DeliveryPartner {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @db.Uuid
+  displayName    String
+  vehicleType    String
+  servicePincode String
+  status         String   @default("PENDING")
+  available      Boolean  @default(false)
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([status,servicePincode,available])
 }
