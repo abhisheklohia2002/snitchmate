@@ -32,6 +32,7 @@ function Screen(){const {tailorId}=useParams<{tailorId:string}>();const router=u
    const design=[brief.design.neckline,brief.design.sleeveType,brief.design.embroidery,brief.design.color,brief.design.silhouette].filter(Boolean).join('; ');
    setInstructions([brief.instructions,design].filter(Boolean).join('\n').slice(0,2000));
    setFiles(brief.referenceImageIds);
+   if(brief.serviceType==='ALTERATION'&&!brief.referenceImageIds.length)setErr('For alterations, upload a current before-photo of the garment on this booking form. Design inspiration photos alone are not enough.');
   }).catch(e=>{if(!cancelled)setErr((e as Error).message);});
   return ()=>{cancelled=true;};
  },[tailorId]);

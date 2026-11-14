@@ -52,7 +52,7 @@ function AiStudioScreen(){
   try{
    for(const file of files){
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>config.maxImageBytes)throw Error('Use JPG, PNG or WebP images up to 5 MB each.');
-    const id=await upload(file,'DESIGN');setStagedImages(previous=>[...previous,id]);
+    const id=await upload(file,requirements.serviceType==='ALTERATION'?'BEFORE':'DESIGN');setStagedImages(previous=>[...previous,id]);
    }
    setHint('Images uploaded privately. They will be sent to the AI provider for analysis when you press Send.');
   }catch(e){setError((e as Error).message);}finally{setUploading(false);}
@@ -67,7 +67,7 @@ function AiStudioScreen(){
    const result=await api<ChatResult>('/ai/conversations/'+conversation.id+'/messages',{method:'POST',body:JSON.stringify({message:text,requestId,imageFileIds:images})});
    if(!result.enabled)throw Error(result.error||'AI assistant unavailable.');
    setRequirements(result.requirements);setRecommendations(result.recommendations);setSelection(null);setConfirmed(false);
-   setConversation(c=>c?{...c,messages:[...c.messages,{id:crypto.randomUUID(),role:'ASSISTANT',content:result.reply,createdAt:new Date().toISOString()}]}:c);
+   setConversation(c=>c?{...c,referenceImageIds:[...new Set([...c.referenceImageIds,...images])].slice(-3),messages:[...c.messages,{id:crypto.randomUUID(),role:'ASSISTANT',content:result.reply,createdAt:new Date().toISOString()}]}:c);
    void load();
   }catch(e){setError((e as Error).message);setDraft(text);setStagedImages(images);}
   finally{setBusy(false);}
