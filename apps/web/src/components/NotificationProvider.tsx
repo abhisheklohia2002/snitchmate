@@ -36,6 +36,13 @@ export function NotificationProvider({children}:{children:ReactNode}){
  const [soundEnabled,setSoundEnabled]=useState(false);
  const soundRef=useRef(false);
  const lastId=useRef<string|null>(null);
+ const seenIds=useRef(new Set<string>());
+ const recordArrival=(id:string,unread:boolean)=>{
+  if(seenIds.current.has(id))return;
+  if(seenIds.current.size>800)seenIds.current.clear();
+  seenIds.current.add(id);
+  if(unread&&soundRef.current)playNotificationChime();
+ };
  const initialized=useRef(false);
  const fetching=useRef(false);
 
@@ -47,7 +54,10 @@ export function NotificationProvider({children}:{children:ReactNode}){
    setItems(result.items);setNextCursor(result.nextCursor);
    setUnreadCount(result.unreadCount);setError(null);
    const latest=result.items[0]||null;
-   if(initialized.current&&latest?.id!==lastId.current&&latest&&!latest.readAt&&soundRef.current)playNotificationChime();
+   if(latest?.id){
+    if(!initialized.current)seenIds.current.add(latest.id);
+    else if(latest.id!==lastId.current)recordArrival(latest.id,!latest.readAt);
+   }
    lastId.current=latest?.id||null;initialized.current=true;
   }catch(e){setError((e as Error).message);}
   finally{fetching.current=false;setLoading(false);}
@@ -67,7 +77,7 @@ export function NotificationProvider({children}:{children:ReactNode}){
  useEffect(()=>{
   setItems([]);setUnreadCount(0);setNextCursor(null);setError(null);
   setSoundEnabled(false);soundRef.current=false;lastId.current=null;
-  initialized.current=false;fetching.current=false;
+  initialized.current=false;seenIds.current.clear();fetching.current=false;
   if(!user)return;
   setLoading(true);
   let stopped=false;
@@ -85,9 +95,9 @@ export function NotificationProvider({children}:{children:ReactNode}){
      const next=JSON.parse(event.data) as {latestId?:string|null;unreadCount?:number;error?:string};
      if(next.error==='SESSION_EXPIRED'){stream?.close();return;}
      if(typeof next.unreadCount==='number')setUnreadCount(next.unreadCount);
-     if(!initialized.current){lastId.current=next.latestId||null;initialized.current=true;void refresh();return;}
+     if(!initialized.current){lastId.current=next.latestId||null;if(next.latestId)seenIds.current.add(next.latestId);initialized.current=true;void refresh();return;}
      if(next.latestId!==lastId.current){
-      if(next.latestId&&soundRef.current)playNotificationChime();
+      if(next.latestId)recordArrival(next.latestId,true);
       lastId.current=next.latestId||null;void refresh();
      }
     }catch{/* Ignore malformed events; polling will recover. */}
