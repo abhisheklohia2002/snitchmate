@@ -94,6 +94,11 @@ async function main(){
  const used=await db.aiDailyUsage.findUniqueOrThrow({where:{userId_day:{userId:customer.id,day:new Date().toISOString().slice(0,10)}}});
  assert.equal(used.requests,2);
  pass('per-user daily quota is atomic, includes failed provider attempts and blocks overage');
+ const providerUser=await account('AI error test');
+ const providerSession=await req('POST','/ai/conversations',providerUser,{});
+ await req('POST','/ai/conversations/'+providerSession.id+'/messages',providerUser,{message:'simulate-invalid-output',requestId:uuid()},503);
+ await req('POST','/ai/conversations/'+providerSession.id+'/messages',providerUser,{message:'simulate-timeout',requestId:uuid()},503);
+ pass('malformed AI JSON and model timeout return safe, non-booking errors');
  assert.equal((await req('GET','/ai/conversations',stranger)).length,0);
  console.log('AI E2E PASSED: '+checks+' grouped assertions');
 }

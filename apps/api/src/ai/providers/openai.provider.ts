@@ -20,7 +20,8 @@ export class OpenAiProvider {
   // Only isolated CI can redirect requests to a local fake OpenAI server.
   const testBase=process.env.NODE_ENV==='test'&&/^http:\/\/127\.0\.0\.1:4019\/v1$/.test(process.env.AI_TEST_BASE_URL||'')
     ?process.env.AI_TEST_BASE_URL:undefined;
-  const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:25000,maxRetries:1,...(testBase?{baseURL:testBase}:{})});
+  const timeout=process.env.NODE_ENV==='test'?Math.max(300,Number(process.env.AI_TEST_TIMEOUT_MS)||25000):25000;
+  const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout,maxRetries:1,...(testBase?{baseURL:testBase}:{})});
   // Previous user messages are bounded and reference-image links expire quickly.
   const context=JSON.stringify({previousRequirements:input.previous,conversationHistory:input.history.slice(-8).map(x=>({role:x.role,content:redactPrivateIdentifiers(x.content)}))});
   const content:Array<{type:'input_text';text:string}|{type:'input_image';image_url:string;detail:'low'}>=[

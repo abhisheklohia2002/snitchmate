@@ -10,6 +10,7 @@ const server=http.createServer(async(req,res)=>{
  const text=userContent.filter(x=>x.type==='input_text').map(x=>x.text).join(' ');
  const hasImage=userContent.some(x=>x.type==='input_image');
  if(!request.text?.format?.schema||!request.store===false){/* Validate mock's structured route below. */}
+ if(text.includes('simulate-timeout')){await new Promise(resolve=>setTimeout(resolve,5000));res.writeHead(503);res.end();return;}
  if(text.includes('simulate-rate-limit')){res.writeHead(429,{'content-type':'application/json'});res.end(JSON.stringify({error:{type:'rate_limit_error',message:'AI capacity limited'}}));return;}
  if(text.includes('simulate-invalid-output')){
   res.writeHead(200,{'content-type':'application/json'});
