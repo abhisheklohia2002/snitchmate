@@ -9,7 +9,7 @@ const STATUS:Record<string,[string,string]>={
  TAILOR_DECLINED:['Request declined','The tailor cannot take this order.'],
  QUOTE_READY:['Quotation received','Your tailor has sent a quotation for review.'],
  QUOTE_ACCEPTED:['Quote accepted','Your customer accepted the quotation.'],
- PAYMENT_CONFIRMED:['Payment confirmed','Payment is confirmed for this tailoring order.'],
+ PAID:['Payment confirmed','Payment is confirmed for this tailoring order.'],
  PAYMENT_FAILED:['Payment needs attention','A payment attempt did not complete.'],
  PICKUP_SCHEDULED:['Pickup scheduled','Your garment pickup has been scheduled.'],
  INBOUND_TRANSIT:['Garment collected','Your garments have been collected by a delivery partner.'],
@@ -70,7 +70,7 @@ export class NotificationsService {
        this.db.review.findMany({where:{orderId:{in:orderIds},createdAt:{gte:cutoff}},take:80,orderBy:{createdAt:'desc'}}),
        this.db.tailorPayout.findMany({where:{orderId:{in:orderIds},createdAt:{gte:cutoff}},take:80,orderBy:{createdAt:'desc'}})
       ]);
-      for(const e of events)if(['QUOTE_REQUESTED','QUOTE_ACCEPTED','PAYMENT_CONFIRMED','MATERIAL_RECEIVED','IN_PRODUCTION','COMPLETED','DISPUTED'].includes(e.to)){
+      for(const e of events)if(['QUOTE_REQUESTED','QUOTE_ACCEPTED','PAID','MATERIAL_RECEIVED','IN_PRODUCTION','COMPLETED','DISPUTED'].includes(e.to)){
        const title=STATUS[e.to]||['Order update','Your order status has changed.'];
        this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','tailor-order:'+e.id,'ORDER',e.to==='QUOTE_REQUESTED'?'New order request':title[0],title[1]+' · '+(num.get(e.orderId)||'Order'),'/tailor/orders/'+e.orderId,e.createdAt);
       }
