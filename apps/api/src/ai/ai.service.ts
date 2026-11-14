@@ -68,8 +68,16 @@ export class AiService {
   const previousIds=Array.isArray(c.referenceImageIds)?c.referenceImageIds.filter((x):x is string=>typeof x==='string'):[];
   const imageIds=[...new Set([...previousIds,...input.imageFileIds])].slice(-3);
   const priorMessages=await this.db.aiMessage.findMany({where:{conversationId:c.id},select:{role:true,content:true},orderBy:{createdAt:'desc'},take:8});
-  await this.charge(actor.id);
-  await this.db.aiMessage.create({data:{conversationId:c.id,role:'USER',content:input.message,requestId:input.requestId,imageFileIds:input.imageFileIds}});
+  // Claim the request ID before charging or calling the model, even under parallel retries.
+  let userMessage;
+  try{
+   userMessage=await this.db.aiMessage.create({data:{conversationId:c.id,role:'USER',content:input.message,requestId:input.requestId,imageFileIds:input.imageFileIds}});
+  }catch(e){
+   if(e instanceof Prisma.PrismaClientKnownRequestError&&e.code==='P2002')throw new ConflictException('This message is already being processed.');
+   throw e;
+  }
+  try{await this.charge(actor.id);}
+  catch(e){await this.db.aiMessage.delete({where:{id:userMessage.id}});throw e;}
   const urls=await Promise.all(images.map(async f=>({url:await getSignedUrl(s3,new GetObjectCommand({Bucket:process.env.S3_BUCKET??'stitchmate-private',Key:f.storageKey}),{expiresIn:90})})));
   let result;
   try{
