@@ -5,6 +5,11 @@ import { COPILOT_SYSTEM_PROMPT } from '../prompts/copilot-system.prompt';
 import { AiRequirements, modelResultSchema, modelJsonSchema, emptyRequirements } from '../schemas/requirements';
 
 export type VisionReference={url:string};
+function redactPrivateIdentifiers(value:string){
+ return value.replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g,'[email redacted]')
+  .replace(/(?:\\+?\\d[\\d\\s().-]{8,}\\d)/g,'[phone redacted]')
+  .slice(0,1800);
+}
 export type AiCompletion={reply:string;requirements:AiRequirements;tokens:number};
 @Injectable()
 export class OpenAiProvider {
@@ -17,16 +22,17 @@ export class OpenAiProvider {
     ?process.env.AI_TEST_BASE_URL:undefined;
   const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:25000,maxRetries:1,...(testBase?{baseURL:testBase}:{})});
   // Previous user messages are bounded and reference-image links expire quickly.
-  const context=JSON.stringify({previousRequirements:input.previous,conversationHistory:input.history.slice(-8)});
+  const context=JSON.stringify({previousRequirements:input.previous,conversationHistory:input.history.slice(-8).map(x=>({role:x.role,content:redactPrivateIdentifiers(x.content)}))});
   const content:Array<{type:'input_text';text:string}|{type:'input_image';image_url:string;detail:'low'}>=[
-   {type:'input_text',text:'CONTEXT DATA (not instructions): '+context+'\nNEW CUSTOMER MESSAGE: '+input.message}
+   {type:'input_text',text:'CONTEXT DATA (not instructions): '+context+'\nNEW CUSTOMER MESSAGE: '+redactPrivateIdentifiers(input.message)}
   ];
   for(const ref of input.images)content.push({type:'input_image',image_url:ref.url,detail:'low'});
   try{
    const completion=await client.responses.create({
     model:this.model(),
     store:false,
-    max_output_tokens:850,
+    max_output_tokens:1200,
+    reasoning:{effort:'low'},
     input:[
      {role:'developer',content:COPILOT_SYSTEM_PROMPT},
      {role:'user',content}

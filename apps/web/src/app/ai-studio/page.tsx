@@ -54,7 +54,7 @@ function AiStudioScreen(){
     if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>config.maxImageBytes)throw Error('Use JPG, PNG or WebP images up to 5 MB each.');
     const id=await upload(file,'DESIGN');setStagedImages(previous=>[...previous,id]);
    }
-   setHint('Images uploaded privately. Send your message to analyze them.');
+   setHint('Images uploaded privately. They will be sent to the AI provider for analysis when you press Send.');
   }catch(e){setError((e as Error).message);}finally{setUploading(false);}
  }
  async function send(text=draft){
@@ -99,7 +99,7 @@ function AiStudioScreen(){
    <aside className="ai-conversations card">
     <div className="ai-side-heading"><h3>Your ideas</h3><Button icon={<Plus size={16}/>} type="primary" onClick={()=>void start()} disabled={!config?.enabled||busy}>New</Button></div>
     {sessions.length===0?<p className="small-note">Start a new idea to save a tailoring conversation.</p>:sessions.map(s=><button type="button" key={s.id} className={'ai-history-item'+(conversation?.id===s.id?' active':'')} onClick={()=>void open(s.id)}>{s.title}<span>{new Date(s.updatedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span></button>)}
-    <div className="ai-privacy-note"><ShieldCheck size={17}/> Private to your account · Photos stay in your secure storage</div>
+    <div className="ai-privacy-note"><ShieldCheck size={17}/> Private to your account · Reference photos are shared with the AI provider only when you send them</div>
    </aside>
    <section className="ai-chat card">
     <div className="ai-chat-heading"><div className="ai-bot-icon"><Sparkles size={22}/></div><div><h2>StitchMate Copilot</h2><p>Design guidance and real tailor recommendations</p></div></div>
