@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {useState,useEffect} from 'react';
 import {RequireAuth} from '@/components/Auth';
 import {Alert,PageTitle,useLoad,TailorService} from '@/components/Shared';
-import {post,upload} from '@/lib/api';
+import {api,post,upload} from '@/lib/api';
 type Address={id:string;label:string;line1:string;pincode:string};type Profile={id:string;label:string;versions:{id:string;version:number}[]};
 type Tailor={id:string;shopName:string;status:string;services:TailorService[]};
 type DraftItem={categoryId:string;quantity:number;design:{fit:string};material:{fabricType:string;suppliedBy:'CUSTOMER'};instructions:string;measurementVersionId:string|null;hasFittingSample:boolean;fileIds:string[]};
@@ -12,6 +12,31 @@ export default function Booking(){return <RequireAuth><Screen/></RequireAuth>}
 function Screen(){const {tailorId}=useParams<{tailorId:string}>();const router=useRouter();const {data:addresses}=useLoad<Address[]>('/me/addresses');const {data:profiles}=useLoad<Profile[]>('/me/measurements');
  const [gigId,setGigId]=useState(''),[gigTier,setGigTier]=useState('');const [type,setType]=useState<'CUSTOM_STITCHING'|'ALTERATION'>('CUSTOM_STITCHING'),[category,setCategory]=useState(''),[addressId,setAddress]=useState(''),[returnId,setReturn]=useState(''),[measurement,setMeasurement]=useState(''),[sample,setSample]=useState(false),[quantity,setQuantity]=useState(1),[instructions,setInstructions]=useState(''),[fabric,setFabric]=useState('Cotton'),[fit,setFit]=useState('Regular'),[fileIds,setFiles]=useState<string[]>([]),[busy,setBusy]=useState(false),[err,setErr]=useState(''),[staged,setStaged]=useState<DraftItem[]>([]);
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const id=params.get('gigId')||'',tier=params.get('gigTier')||'';if(id&&['BASIC','STANDARD','PREMIUM'].includes(tier)){setGigId(id);setGigTier(tier);const category=params.get('categoryId')||'';const typ=params.get('serviceType');if(typ==='CUSTOM_STITCHING'||typ==='ALTERATION')setType(typ);setCategory(category);}},[]);
+
+ useEffect(()=>{
+  const params=new URLSearchParams(window.location.search);
+  const conversationId=params.get('aiConversation');
+  if(!conversationId||!params.get('gigId'))return;
+  let cancelled=false;
+  void api<{
+   serviceType:'CUSTOM_STITCHING'|'ALTERATION';categoryId:string;tailorId:string;
+   gigId:string;gigTier:string;instructions:string;referenceImageIds:string[];
+   design:{neckline:string|null;sleeveType:string|null;embroidery:string|null;color:string|null;silhouette:string|null}
+  }>('/ai/conversations/'+encodeURIComponent(conversationId)+'/booking').then(brief=>{
+   if(cancelled)return;
+   // Only accept server-confirmed brief fields for this exact tailor, gig and package.
+   if(brief.tailorId!==tailorId||brief.gigId!==params.get('gigId')||brief.gigTier!==params.get('gigTier')){
+    setErr('AI selection no longer matches this booking. Please select a gig again.');return;
+   }
+   setType(brief.serviceType);setCategory(brief.categoryId);
+   const design=[brief.design.neckline,brief.design.sleeveType,brief.design.embroidery,brief.design.color,brief.design.silhouette].filter(Boolean).join('; ');
+   setInstructions([brief.instructions,design].filter(Boolean).join('\n').slice(0,2000));
+   setFiles(brief.referenceImageIds);
+   if(brief.serviceType==='ALTERATION'&&!brief.referenceImageIds.length)setErr('For alterations, upload a current before-photo of the garment on this booking form. Design inspiration photos alone are not enough.');
+  }).catch(e=>{if(!cancelled)setErr((e as Error).message);});
+  return ()=>{cancelled=true;};
+ },[tailorId]);
+
  const {data:chosen}=useLoad<Tailor>(`/tailors/id/${tailorId}`);const services=chosen?.services.filter(s=>s.category.serviceType===type)||[];
  async function uploadFiles(selected:FileList|null){if(!selected)return;setBusy(true);setErr('');try{for(const f of Array.from(selected)){const id=await upload(f,type==='ALTERATION'?'BEFORE':'DESIGN');setFiles(x=>[...x,id]);}}catch(e){setErr((e as Error).message);}finally{setBusy(false);}}
  function current():DraftItem{

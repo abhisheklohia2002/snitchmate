@@ -25,6 +25,8 @@ model User {
   measurementProfiles MeasurementProfile[]
   files               UploadedFile[]
   notifications       Notification[]
+  aiConversations     AiConversation[]
+  aiDailyUsage        AiDailyUsage[]
   notificationPreference NotificationPreference?
 }
 model UserRole {
@@ -535,4 +537,41 @@ model NotificationPreference {
   soundEnabled Boolean  @default(false)
   updatedAt    DateTime @updatedAt
   user         User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+
+model AiConversation {
+  id                  String      @id @default(uuid()) @db.Uuid
+  userId              String      @db.Uuid
+  title               String      @default("New tailoring idea")
+  requirements        Json?
+  brief               Json?
+  referenceImageIds   Json?
+  confirmedAt         DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  user                User        @relation(fields:[userId], references:[id], onDelete:Cascade)
+  messages            AiMessage[]
+  @@index([userId, updatedAt(sort: Desc)])
+}
+
+model AiMessage {
+  id              String          @id @default(uuid()) @db.Uuid
+  conversationId  String          @db.Uuid
+  role            String
+  content         String          @db.Text
+  imageFileIds    Json?
+  requestId       String?         @db.Uuid
+  createdAt       DateTime        @default(now())
+  conversation    AiConversation  @relation(fields:[conversationId], references:[id], onDelete:Cascade)
+  @@unique([conversationId, role, requestId])
+  @@index([conversationId, createdAt])
+}
+
+model AiDailyUsage {
+  userId       String    @db.Uuid
+  day          String
+  requests     Int       @default(0)
+  tokensUsed   Int       @default(0)
+  user         User      @relation(fields:[userId], references:[id], onDelete:Cascade)
+  @@id([userId,day])
 }

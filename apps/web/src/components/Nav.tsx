@@ -10,6 +10,7 @@ import {ThemeToggle} from './ThemeToggle';
 
 const discovery=[
  {href:'/services',label:'Services'},
+ {href:'/ai-studio',label:'AI Studio'},
  {href:'/gigs',label:'Explore gigs'},
  {href:'/tailors',label:'Find tailors'}
 ] as const;
