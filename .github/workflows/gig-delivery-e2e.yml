@@ -25,7 +25,12 @@ jobs:
           --health-retries 15
     env:
       DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e?schema=public
-      NODE_ENV: development
+      NODE_ENV: test
+      STITCHMATE_AI_ENABLED: 'true'
+      OPENAI_API_KEY: ci-only-not-a-real-key
+      OPENAI_COPILOT_MODEL: gpt-5-mini
+      AI_TEST_BASE_URL: http://127.0.0.1:4019/v1
+      AI_MAX_REQUESTS_PER_USER_PER_DAY: '2'
       WEB_ORIGIN: http://localhost:3000
       PORT: "4010"
       SESSION_SECRET: ci-only-session-secret-12345678901234567890
@@ -54,6 +59,15 @@ jobs:
         run: pnpm --filter @stitchmate/api prisma:deploy
       - name: Seed disposable test DB
         run: pnpm --filter @stitchmate/api prisma:seed
+      - name: Start isolated OpenAI Responses mock
+        run: |
+          node apps/api/test/openai-mock-server.cjs > /tmp/stitchmate-ai-mock.log 2>&1 &
+          for i in $(seq 1 25); do
+            if curl -fsS --max-time 1 http://127.0.0.1:4019/health; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/stitchmate-ai-mock.log
+          exit 1
       - name: Boot real API
         run: |
           pnpm --filter @stitchmate/api start > /tmp/stitchmate-e2e-api.log 2>&1 &
@@ -68,6 +82,8 @@ jobs:
         run: pnpm --filter @stitchmate/api exec node test/gig-delivery.e2e.mjs
       - name: Verify per-user notification authorization, read-state and SSE
         run: pnpm --filter @stitchmate/api exec node test/notifications.e2e.mjs
+      - name: Run authenticated AI Copilot E2E on temporary PostgreSQL and fake OpenAI
+        run: pnpm --filter @stitchmate/api exec node test/ai-copilot.e2e.mjs
       - name: Verify staging entrypoint isolates database schema
         run: |
           STITCHMATE_STAGING_DB_BASE_URL="postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e" PORT=4020 node scripts/start-staging-api.cjs > /tmp/stitchmate-stage-check.log 2>&1 &
