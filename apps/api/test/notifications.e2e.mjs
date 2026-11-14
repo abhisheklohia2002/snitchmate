@@ -26,9 +26,11 @@ async function main(){
  const address=await db.address.create({data:{userId:customer.id,label:'Home',name:'Notif Test',phone:customer.phone,line1:'Test',city:'Delhi',state:'Delhi',pincode:'110086'}});
  const order=await db.order.create({data:{orderNumber:'SM-NT-'+id().slice(0,8),customerId:customer.id,tailorId:tailor.id,pickupAddressId:address.id,returnAddressId:address.id,serviceType:'ALTERATION',status:'QUOTE_PENDING'}});
  const event=await db.orderStatusEvent.create({data:{orderId:order.id,from:'QUOTE_REQUESTED',to:'QUOTE_PENDING',actorId:owner.id}});
+ const paymentEvent=await db.orderStatusEvent.create({data:{orderId:order.id,from:'PAYMENT_PENDING',to:'PAID',actorId:null,reason:'Verified payment capture'}});
  await http('GET','/notifications',null,undefined,401);
  const alice=await http('GET','/notifications',customer);
  assert.ok(alice.items.some(n=>n.sourceKey==='order:'+event.id),'customer receives own real status event');
+ assert.ok(alice.items.some(n=>n.sourceKey==='order:'+paymentEvent.id&&n.title==='Payment confirmed'),'PAID transition creates payment confirmation');
  assert.ok(alice.unreadCount>=1);
  const item=alice.items.find(n=>n.sourceKey==='order:'+event.id);
  const other=await http('GET','/notifications',stranger);
