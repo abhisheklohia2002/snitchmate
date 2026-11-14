@@ -2,13 +2,15 @@ import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { AiService } from './ai.service';
+import { MatchingService } from './services/matching.service';
 import { parse } from '../core/http';
-import { briefSchema, messageSchema } from './schemas/requirements';
+import { briefSchema, messageSchema, aiRequirements } from './schemas/requirements';
 
 @Controller('ai')
 export class AiController {
- constructor(private readonly auth:AuthService,private readonly ai:AiService){}
+ constructor(private readonly auth:AuthService,private readonly ai:AiService,private readonly matching:MatchingService){}
  @Get('config') async config(@Req() req:Request){await this.auth.require(req);return this.ai.configuration();}
+ @Post('matches') async matches(@Req() req:Request,@Body() body:unknown){await this.auth.require(req);return this.matching.find(parse(aiRequirements,body));}
  @Get('conversations') async list(@Req() req:Request){return this.ai.list(await this.auth.require(req));}
  @Post('conversations') async create(@Req() req:Request){return this.ai.create(await this.auth.require(req));}
  @Get('conversations/:id') async get(@Req() req:Request,@Param('id') id:string){return this.ai.get(await this.auth.require(req),id);}
