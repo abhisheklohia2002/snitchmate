@@ -107,16 +107,24 @@ export class NotificationsService {
      this.db.logisticsJob.findMany({where:{status:'FAILED_ATTEMPT',updatedAt:{gte:cutoff}},take:80,orderBy:{updatedAt:'desc'}}),
      this.db.auditLog.findMany({where:{createdAt:{gte:cutoff},action:{in:['REFUND_ESCALATED','MATERIAL_ISSUE_REVIEWED','REFUND_REQUESTED','DELIVERY_ATTEMPT_FAILED']}},take:80,orderBy:{createdAt:'desc'}})
     ]);
-    for(const t of tailors)if(t.status==='PENDING')this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','tailor-pending:'+t.id,'APPROVAL','Tailor approval request','A new tailor shop is awaiting verification.','/admin/tailors',t.createdAt);
-    for(const p of partners)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','rider-application:'+p.id,'APPROVAL','New delivery partner application','A local delivery partner has applied.','/admin/delivery-partners',p.createdAt);
-    for(const d of disputes)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','dispute:'+d.id,'CLAIM','New customer claim','A claim needs operations review.','/admin/disputes',d.createdAt);
-    for(const j of failed)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','delivery-failed:'+j.id,'DELIVERY','Delivery exception','A courier delivery attempt needs review.','/admin/logistics',j.updatedAt);
-    for(const a of audits)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','audit:'+a.id,'ADMIN','Operations action requires attention',a.action.replaceAll('_',' ').toLowerCase(),'/admin',a.createdAt);
-    if(actor.roles.includes('admin')){
+    for(const t of tailors)if(actor.roles.includes('admin')&&t.status==='PENDING')this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','tailor-pending:'+t.id,'APPROVAL','Tailor approval request','A new tailor shop is awaiting verification.','/admin/tailors',t.createdAt);
+    for(const p of partners)if(actor.roles.includes('admin'))this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','rider-application:'+p.id,'APPROVAL','New delivery partner application','A local delivery partner has applied.','/admin/delivery-partners',p.createdAt);
+    for(const d of disputes)if(actor.roles.includes('admin'))this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','dispute:'+d.id,'CLAIM','New customer claim','A claim needs operations review.','/admin/disputes',d.createdAt);
+    for(const j of failed)if(actor.roles.includes('admin'))this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','delivery-failed:'+j.id,'DELIVERY','Delivery exception','A courier delivery attempt needs review.','/admin/logistics',j.updatedAt);
+    for(const a of audits){
+     const financeAction=a.action.startsWith('REFUND_');
+     if(actor.roles.includes('admin'))this.add(rows,actor.id,'admin','audit:'+a.id,'ADMIN','Operations action requires attention',a.action.replaceAll('_',' ').toLowerCase(),'/admin',a.createdAt);
+     else if(actor.roles.includes('finance')&&financeAction)this.add(rows,actor.id,'finance','finance-audit:'+a.id,'FINANCE','Refund review update',a.action.replaceAll('_',' ').toLowerCase(),'/admin/finance',a.createdAt);
+    }
+    if(actor.roles.includes('admin')||actor.roles.includes('finance')){
      const exceptions=await this.db.orderStatusEvent.findMany({where:{createdAt:{gte:cutoff},to:{in:['PAYMENT_FAILED','MATERIAL_ISSUE','DISPUTED']}},take:80,orderBy:{createdAt:'desc'}});
-     for(const item of exceptions)this.add(rows,actor.id,'admin','exception:'+item.id,'ADMIN',
-      item.to==='PAYMENT_FAILED'?'Payment exception':'Order needs manual review',
-      'An order requires attention from StitchMate operations.','/admin/orders',item.createdAt);
+     for(const item of exceptions){
+      if(!actor.roles.includes('admin')&&item.to!=='PAYMENT_FAILED')continue;
+      this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','exception:'+item.id,'ADMIN',
+       item.to==='PAYMENT_FAILED'?'Payment exception':'Order needs manual review',
+       'An order requires attention from StitchMate operations.',
+       actor.roles.includes('admin')?'/admin/orders':'/admin/finance',item.createdAt);
+     }
     }
    }
    if(rows.length)await this.db.notification.createMany({data:rows,skipDuplicates:true});
