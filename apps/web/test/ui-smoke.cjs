@@ -56,7 +56,7 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
   console.log('PASS UI '+config.name+' no overflow, navigation usable');
  }
  const routePage=await browser.newPage({viewport:{width:390,height:844}});
- for(const route of ['/services','/gigs','/tailors','/orders','/tailor/dashboard','/admin','/notifications']){
+ for(const route of ['/services','/gigs','/tailors','/orders','/tailor/dashboard','/admin','/notifications','/ai-studio']){
   const result=await routePage.goto('http://127.0.0.1:3000'+route,{waitUntil:'domcontentloaded'});
   assert.equal(result.status(),200,'HTTP '+route);
   const overflow=await routePage.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
@@ -121,6 +121,51 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
  assert.equal(read,true);
  console.log('PASS authenticated notification panel, user-specific list, sound default and read-all action');
  await authPage.close();
+
+
+ const userId='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+ const conversationId='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+ const gigId='cccccccc-cccc-4ccc-cccc-cccccccccccc';
+ const tailorId='dddddddd-dddd-4ddd-dddd-dddddddddddd';
+ const categoryId='eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee';
+ const aiReq={garmentType:'Blouse',serviceType:'CUSTOM_STITCHING',occasion:'Wedding',budgetMax:2000,preferredDeliveryDays:7,pincode:'110086',
+  design:{neckline:'Square neck',sleeveType:'Full sleeves',embroidery:'Light embroidery',color:'Blue',silhouette:'Fitted'},
+  additionalInstructions:'Stitch a fitted blouse with full sleeves',missingInformation:['measurements'],uncertainty:[]};
+ const gig={id:gigId,slug:'sample-blouse',title:'Custom wedding blouse stitching',description:'Demo fixture based on a published gig',categoryId,serviceType:'CUSTOM_STITCHING',
+  tailor:{id:tailorId,slug:'test-tailor',shopName:'Approved test tailor'},rating:4.5,reviewCount:2,
+  packages:[{tier:'BASIC',title:'Stitching',pricePaise:'120000',deliveryDays:6,revisions:1}]};
+ for(const viewport of [{name:'mobile',width:390,height:844},{name:'desktop',width:1440,height:900}]){
+  const page=await browser.newPage({viewport:{width:viewport.width,height:viewport.height}});
+  const runtimeErrors=[];page.on('pageerror',err=>runtimeErrors.push(err.message));
+  await page.route('**/api/v1/auth/me',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:userId,name:'Copilot Demo User',phone:'+919999999999',roles:['customer'],tailorIds:[]})}));
+  await page.route('**/api/v1/ai/config',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({enabled:true,maxImages:3,maxImageBytes:5242880,dailyLimit:30})}));
+  await page.route('**/api/v1/ai/conversations',route=>route.fulfill({status:route.request().method()==='POST'?201:200,contentType:'application/json',
+   body:JSON.stringify(route.request().method()==='POST'?{id:conversationId,title:'New tailoring idea',createdAt:new Date().toISOString()}:[])}));
+  await page.route('**/api/v1/ai/conversations/'+conversationId,route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+   id:conversationId,title:'New tailoring idea',requirements:aiReq,referenceImageIds:[],brief:null,confirmedAt:null,messages:[]
+  })}));
+  await page.route('**/api/v1/ai/conversations/'+conversationId+'/messages',route=>route.fulfill({status:201,contentType:'application/json',body:JSON.stringify({
+   enabled:true,reply:'I found a real published blouse gig for your budget.',requirements:aiReq,recommendations:[gig],conversationId
+  })}));
+  await page.route('**/api/v1/ai/matches',route=>route.fulfill({status:201,contentType:'application/json',body:JSON.stringify([gig])}));
+  await page.goto('http://127.0.0.1:3000/ai-studio',{waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:/Start a new conversation/}).click();
+  await page.getByRole('textbox',{name:'Your tailoring request'}).fill('I need a wedding blouse under 2000');
+  await page.getByRole('button',{name:'Send',exact:true}).click();
+  await page.getByText('Custom wedding blouse stitching').waitFor();
+  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  assert.ok(overflow<=2,'AI studio '+viewport.name+' horizontal overflow '+overflow);
+  await page.screenshot({path:'artifacts/ui-screenshots/ai-studio-'+viewport.name+'-light.png',fullPage:true});
+  await page.evaluate(()=>localStorage.setItem('stitchmate:theme','dark'));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
+  await page.screenshot({path:'artifacts/ui-screenshots/ai-studio-'+viewport.name+'-dark.png',fullPage:true});
+  const darkOverflow=await page.evaluate(()=>document.documentElement.scrollWidth-window.innerWidth);
+  assert.ok(darkOverflow<=2,'AI studio dark overflow');
+  assert.equal(runtimeErrors.length,0,'AI studio browser errors '+runtimeErrors.join('; '));
+  console.log('PASS AI Studio '+viewport.name+' light/dark render and interaction');
+  await page.close();
+ }
 
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1);});

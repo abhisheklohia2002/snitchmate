@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiModule } from './ai/ai.module';
 import { NotificationsController } from './notifications/notifications.controller';
 import { NotificationsService } from './notifications/notifications.service';
 import { GigsController } from './gigs/gigs.controller';
@@ -13,5 +14,5 @@ import { OrdersController } from './orders/orders.controller';
 import { PaymentsController } from './payments/payments.controller';
 import { LogisticsController } from './logistics/logistics.controller';
 import { OperationsController } from './operations/operations.controller';
-@Module({controllers:[NotificationsController,GigsController,DeliveryPartnersController,AuthController,MarketplaceController,MediaController,OrdersController,PaymentsController,LogisticsController,OperationsController],providers:[Db,AuthService,OrdersService,NotificationsService]})
+@Module({imports:[AiModule],controllers:[NotificationsController,GigsController,DeliveryPartnersController,AuthController,MarketplaceController,MediaController,OrdersController,PaymentsController,LogisticsController,OperationsController],providers:[Db,AuthService,OrdersService,NotificationsService]})
 export class AppModule{}
