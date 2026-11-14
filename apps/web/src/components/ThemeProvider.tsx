@@ -11,19 +11,20 @@ const STORAGE='stitchmate:theme';
 export function StitchThemeProvider({children}:{children:ReactNode}){
  const [choice,setChoiceState]=useState<ThemeChoice>('system');
  const [systemDark,setSystemDark]=useState(false);
+ const [ready,setReady]=useState(false);
  useEffect(()=>{
   const saved=window.localStorage.getItem(STORAGE);
   if(saved==='light'||saved==='dark'||saved==='system')setChoiceState(saved);
   const query=window.matchMedia('(prefers-color-scheme: dark)');
   const sync=()=>setSystemDark(query.matches);
-  sync();query.addEventListener('change',sync);
+  sync();setReady(true);query.addEventListener('change',sync);
   return ()=>query.removeEventListener('change',sync);
  },[]);
  const resolved=choice==='system'?(systemDark?'dark':'light'):choice;
  const setChoice=(next:ThemeChoice)=>{
   setChoiceState(next);window.localStorage.setItem(STORAGE,next);
  };
- useEffect(()=>{document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;},[resolved]);
+ useEffect(()=>{if(!ready)return;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;},[resolved,ready]);
  const config=useMemo(()=>({
   algorithm:resolved==='dark'?antTheme.darkAlgorithm:antTheme.defaultAlgorithm,
   token:{

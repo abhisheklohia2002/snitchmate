@@ -46,7 +46,9 @@ export function NotificationProvider({children}:{children:ReactNode}){
    const result=await api<Page>('/notifications?limit=20');
    setItems(result.items);setNextCursor(result.nextCursor);
    setUnreadCount(result.unreadCount);setError(null);
-   if(!initialized.current){lastId.current=result.items[0]?.id||null;initialized.current=true;}
+   const latest=result.items[0]||null;
+   if(initialized.current&&latest?.id!==lastId.current&&latest&&!latest.readAt&&soundRef.current)playNotificationChime();
+   lastId.current=latest?.id||null;initialized.current=true;
   }catch(e){setError((e as Error).message);}
   finally{fetching.current=false;setLoading(false);}
  },[user?.id]);
@@ -84,12 +86,9 @@ export function NotificationProvider({children}:{children:ReactNode}){
      if(next.error==='SESSION_EXPIRED'){stream?.close();return;}
      if(typeof next.unreadCount==='number')setUnreadCount(next.unreadCount);
      if(!initialized.current){lastId.current=next.latestId||null;initialized.current=true;void refresh();return;}
-     if(next.latestId&&lastId.current&&next.latestId!==lastId.current){
-      lastId.current=next.latestId;
-      if(soundRef.current)playNotificationChime();
-      void refresh();
-     }else if(!lastId.current&&next.latestId){
-      lastId.current=next.latestId;void refresh();
+     if(next.latestId!==lastId.current){
+      if(next.latestId&&soundRef.current)playNotificationChime();
+      lastId.current=next.latestId||null;void refresh();
      }
     }catch{/* Ignore malformed events; polling will recover. */}
    };
