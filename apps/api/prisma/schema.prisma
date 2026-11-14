@@ -24,6 +24,8 @@ model User {
   orders              Order[]
   measurementProfiles MeasurementProfile[]
   files               UploadedFile[]
+  notifications       Notification[]
+  notificationPreference NotificationPreference?
 }
 model UserRole {
   id        String   @id @default(uuid()) @db.Uuid
@@ -510,4 +512,27 @@ model DeliveryPartner {
   updatedAt      DateTime @updatedAt
   user           User     @relation(fields:[userId],references:[id],onDelete:Cascade)
   @@index([status,servicePincode,available])
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  role        String?
+  sourceKey   String
+  type        String
+  title       String
+  body        String
+  href        String?
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  user        User      @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@unique([userId,sourceKey,role])
+  @@index([userId,role,createdAt(sort: Desc)])
+  @@index([userId,readAt,createdAt(sort: Desc)])
+}
+model NotificationPreference {
+  userId       String   @id @db.Uuid
+  soundEnabled Boolean  @default(false)
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields:[userId],references:[id],onDelete:Cascade)
 }
