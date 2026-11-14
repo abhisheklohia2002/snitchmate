@@ -1,8 +1,8 @@
 'use client';
 import Link from 'next/link';
-import {Badge,Button,Empty,List,Popover,Spin,Switch,Tooltip,Typography} from 'antd';
-import {Bell,CheckCheck,Settings2,Volume2} from 'lucide-react';
-import {useState} from 'react';
+import {Badge,Button,Drawer,Empty,List,Popover,Spin,Switch,Tooltip,Typography} from 'antd';
+import {Bell,CheckCheck,Volume2} from 'lucide-react';
+import {useEffect,useState} from 'react';
 import {useNotifications,type Notice} from './NotificationProvider';
 
 function timeAgo(value:string){
@@ -30,6 +30,8 @@ export function NotificationItem({item,onSelect}:{item:Notice;onSelect?:()=>void
 }
 export function NotificationBell(){
  const [open,setOpen]=useState(false);
+ const [mobile,setMobile]=useState(false);
+ useEffect(()=>{const media=window.matchMedia('(max-width:690px)');const sync=()=>setMobile(media.matches);sync();media.addEventListener('change',sync);return()=>media.removeEventListener('change',sync);},[]);
  const {items,unreadCount,loading,error,soundEnabled,setSound,markAllRead,refresh}=useNotifications();
  const content=<div className="notification-panel">
   <div className="notification-panel-head">
@@ -48,11 +50,19 @@ export function NotificationBell(){
   </div>
   <div className="notification-panel-foot"><Link href="/notifications" onClick={()=>setOpen(false)}>View all notifications</Link><Button size="small" type="text" onClick={()=>void refresh()}>Refresh</Button></div>
  </div>;
+ const trigger=<Tooltip title="Notifications"><Badge count={unreadCount} size="small" overflowCount={99} offset={[-2,4]}>
+   <Button type="text" className="header-utility-button" aria-label={'Notifications'+(unreadCount?' ('+unreadCount+' unread)':'')}
+    onClick={mobile?()=>{setOpen(true);void refresh();}:undefined} icon={<Bell size={20}/>}/>
+  </Badge></Tooltip>;
+ if(mobile)return <>{trigger}
+  <Drawer placement="right" title="Notifications" width="min(390px, 100vw)" open={open} onClose={()=>setOpen(false)}
+   styles={{body:{padding:0},header:{padding:'14px 18px'}}} destroyOnHidden>
+   {content}
+  </Drawer>
+ </>;
  return <Popover placement="bottomRight" arrow={false} trigger="click" open={open}
   onOpenChange={value=>{setOpen(value);if(value)void refresh();}} content={content}
   styles={{container:{padding:0,maxWidth:'calc(100vw - 18px)',borderRadius:16}}}>
-  <Tooltip title="Notifications"><Badge count={unreadCount} size="small" overflowCount={99} offset={[-2,4]}>
-    <Button type="text" className="header-utility-button" aria-label={'Notifications'+(unreadCount?' ('+unreadCount+' unread)':'')} icon={<Bell size={20}/>}/>
-  </Badge></Tooltip>
+  {trigger}
  </Popover>;
 }
