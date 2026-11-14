@@ -13,7 +13,7 @@ export class OpenAiProvider {
  async complete(input:{message:string;history:{role:string;content:string}[];previous:AiRequirements;images:VisionReference[]}):Promise<AiCompletion>{
   if(!this.enabled())throw new ServiceUnavailableException('AI Copilot is not configured yet.');
   // Only isolated CI can redirect requests to a local fake OpenAI server.
-  const testBase=process.env.NODE_ENV==='test'&&/^http:\/\/127\\.0\\.0\\.1:4019\/v1$/.test(process.env.AI_TEST_BASE_URL||'')
+  const testBase=process.env.NODE_ENV==='test'&&/^http:\/\/127\.0\.0\.1:4019\/v1$/.test(process.env.AI_TEST_BASE_URL||'')
     ?process.env.AI_TEST_BASE_URL:undefined;
   const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:25000,maxRetries:1,...(testBase?{baseURL:testBase}:{})});
   // Previous user messages are bounded and reference-image links expire quickly.
