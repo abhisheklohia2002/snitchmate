@@ -427,3 +427,9 @@ label{color:var(--deep)}
  .ant-picker-panel-container{max-width:calc(100vw - 12px);overflow:auto}
  .ant-notification{max-width:calc(100vw - 16px)}
 }
+
+/* Mobile notification Drawer uses the existing themed content without clipping. */
+.ant-drawer .notification-panel{width:100%;border-radius:0}
+.ant-drawer .notification-panel-content{max-height:calc(100dvh - 280px)}
+.ant-drawer .ant-drawer-body{background:var(--sm-surface);padding:0}
+.ant-drawer .ant-drawer-header{background:var(--sm-surface);border-color:var(--border)}

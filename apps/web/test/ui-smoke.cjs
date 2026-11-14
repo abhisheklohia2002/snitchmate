@@ -78,6 +78,7 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
  await authPage.getByRole('button',{name:/Notifications/}).waitFor();
  await authPage.getByRole('button',{name:/Notifications/}).click();
  await authPage.getByText('New quotation received').waitFor();
+ await authPage.waitForTimeout(400); // Await completion of Ant Design Drawer transition before screenshot.
  assert.equal(soundEnabled,false,'notification sound must be off by default');
  await authPage.getByRole('switch',{name:'Enable notification sound'}).click();
  assert.equal(soundEnabled,true,'sound preference toggle must invoke persistent backend');
