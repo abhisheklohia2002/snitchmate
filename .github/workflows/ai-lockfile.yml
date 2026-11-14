@@ -1,0 +1,35 @@
+name: Refresh Copilot SDK lockfile (temporary)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - apps/api/package.json
+      - .github/workflows/ai-lockfile.yml
+permissions:
+  contents: write
+jobs:
+  lockfile:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/stitchmate-ai-copilot
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Commit pnpm lockfile
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then echo "No lock changes"; exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pnpm-lock.yaml
+          git commit -m "chore(ai): lock official OpenAI SDK"
+          git push origin HEAD:feature/stitchmate-ai-copilot
