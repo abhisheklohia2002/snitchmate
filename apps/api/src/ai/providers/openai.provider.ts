@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException, TooManyRequestsException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, HttpException } from '@nestjs/common';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { COPILOT_SYSTEM_PROMPT } from '../prompts/copilot-system.prompt';
@@ -37,7 +37,7 @@ export class OpenAiProvider {
    return {...result,tokens:completion.usage?.total_tokens??0};
   }catch(error){
    if(error instanceof z.ZodError || error instanceof SyntaxError)throw new ServiceUnavailableException('The AI response could not be validated. Please try again.');
-   if(error instanceof OpenAI.RateLimitError)throw new TooManyRequestsException('AI is busy. Please try again shortly.');
+   if(error instanceof OpenAI.RateLimitError)throw new HttpException('AI is busy. Please try again shortly.',429);
    // Do not log model request bodies, uploaded URLs, API keys or customer data.
    throw new ServiceUnavailableException('AI is temporarily unavailable. Your tailoring marketplace is unaffected.');
   }

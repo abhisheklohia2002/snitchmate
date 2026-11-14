@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, TooManyRequestsException, BadRequestException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException, HttpException, BadRequestException } from '@nestjs/common';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Prisma } from '@prisma/client';
@@ -34,13 +34,14 @@ export class AiService {
  private async charge(userId:string){
   const day=new Date().toISOString().slice(0,10);
   await this.db.aiDailyUsage.upsert({where:{userId_day:{userId,day}},create:{userId,day,requests:0},update:{}});
-  const ok=await this.db.aiDailyUsage.updateMany({where:{userId,day,requests:{lt:this.limit()}},data:{requests:{increment:1}}});
-  if(ok.count!==1)throw new TooManyRequestsException('You have reached the daily AI request limit.');
+  const ok=await this.db.aiDailyUsage.updateMany({where:{userId,day,requests:{lt:this.limit()},tokensUsed:{lt:50000}},data:{requests:{increment:1}}});
+  if(ok.count!==1)throw new HttpException('You have reached the daily AI request limit.',429);
  }
  async list(actor:Actor){
   return this.db.aiConversation.findMany({where:{userId:actor.id,updatedAt:{gte:expiry()}},select:{id:true,title:true,createdAt:true,updatedAt:true,confirmedAt:true},orderBy:{updatedAt:'desc'},take:30});
  }
  async create(actor:Actor){
+  await this.db.aiConversation.deleteMany({where:{userId:actor.id,updatedAt:{lt:expiry()}}});
   const active=await this.db.aiConversation.count({where:{userId:actor.id,updatedAt:{gte:expiry()}}});
   if(active>=30)throw new ConflictException('Maximum 30 active conversations. Continue an existing one.');
   return this.db.aiConversation.create({data:{userId:actor.id},select:{id:true,title:true,createdAt:true}});
@@ -61,6 +62,8 @@ export class AiService {
    if(!answer)throw new ConflictException('This request is already processing.');
    return {reply:answer.content,requirements:c.requirements??emptyRequirements,recommendations:await this.matching.find(aiRequirements.parse(c.requirements??emptyRequirements)),conversationId:c.id,deduplicated:true};
   }
+  const count=await this.db.aiMessage.count({where:{conversationId:c.id,role:'USER'}});
+  if(count>=50)throw new ConflictException('This conversation has reached its message limit. Start a new idea.');
   const images=await this.files(actor.id,input.imageFileIds);
   const previousIds=Array.isArray(c.referenceImageIds)?c.referenceImageIds.filter((x):x is string=>typeof x==='string'):[];
   const imageIds=[...new Set([...previousIds,...input.imageFileIds])].slice(-3);
@@ -97,7 +100,7 @@ export class AiService {
   const images=Array.isArray(c.referenceImageIds)?c.referenceImageIds:[];
   if(!brief.imageFileIds.every(x=>images.includes(x)))throw new ForbiddenException('Brief contains an image outside your conversation.');
   await this.files(actor.id,brief.imageFileIds);
-  const req=aiRequirements.parse({...c.requirements,...brief,missingInformation:[],uncertainty:[]});
+  const req=aiRequirements.parse({...aiRequirements.parse(c.requirements??emptyRequirements),...brief,missingInformation:[],uncertainty:[]});
   const gigs=await this.matching.find(req);
   const gig=gigs.find(g=>g.id===brief.gigId&&g.tailor.id===brief.tailorId&&g.categoryId===brief.categoryId&&g.serviceType===brief.serviceType);
   if(!gig||!gig.packages.some(p=>p.tier===brief.gigTier))throw new ConflictException('That gig/package is no longer eligible. Refresh the suggestions.');

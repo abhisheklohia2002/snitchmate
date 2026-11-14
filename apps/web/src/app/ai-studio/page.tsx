@@ -115,7 +115,7 @@ function AiStudioScreen(){
      {conversation.messages.length===0&&<div className="ai-starters">{examples.map(example=><button type="button" className="ai-starter" key={example} onClick={()=>void send(example)} disabled={busy}>{example}</button>)}</div>}
      <form className="ai-composer" onSubmit={e=>{e.preventDefault();void send();}}>
       {stagedImages.length>0&&<div className="ai-upload-count"><ImagePlus size={15}/> {stagedImages.length} uploaded reference images <Button type="link" size="small" onClick={()=>setStagedImages([])}>Clear</Button></div>}
-      <Input.TextArea rows={3} maxLength={1600} showCount value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Tell us what you want to stitch or alter…" aria-label="Your tailoring request" onPressEnter={e=>{if(!e.shiftKey){e.preventDefault();void send();}}} disabled={!config.enabled||busy}/>
+      <Input.TextArea rows={3} maxLength={1600} showCount value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Tell us what you want to stitch or alter…" aria-label="Your tailoring request" onPressEnter={e=>{if(!e.shiftKey){e.preventDefault();void send();}}} disabled={!config?.enabled||busy}/>
       <div className="ai-composer-actions">
        <Upload accept="image/png,image/jpeg,image/webp" multiple fileList={[]} showUploadList={false} beforeUpload={(file,files)=>{if(file.uid===files[0]?.uid)void addImages(files);return false;}} disabled={uploading||busy||stagedImages.length>=3}>
         <Button icon={<ImagePlus size={17}/>} loading={uploading}>Add reference</Button>
