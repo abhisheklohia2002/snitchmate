@@ -12,7 +12,10 @@ export class OpenAiProvider {
  model(){return process.env.OPENAI_COPILOT_MODEL||'gpt-5-mini';}
  async complete(input:{message:string;history:{role:string;content:string}[];previous:AiRequirements;images:VisionReference[]}):Promise<AiCompletion>{
   if(!this.enabled())throw new ServiceUnavailableException('AI Copilot is not configured yet.');
-  const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:25000,maxRetries:1});
+  // Only isolated CI can redirect requests to a local fake OpenAI server.
+  const testBase=process.env.NODE_ENV==='test'&&/^http:\/\/127\\.0\\.0\\.1:4019\/v1$/.test(process.env.AI_TEST_BASE_URL||'')
+    ?process.env.AI_TEST_BASE_URL:undefined;
+  const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:25000,maxRetries:1,...(testBase?{baseURL:testBase}:{})});
   // Previous user messages are bounded and reference-image links expire quickly.
   const context=JSON.stringify({previousRequirements:input.previous,conversationHistory:input.history.slice(-8)});
   const content:Array<{type:'input_text';text:string}|{type:'input_image';image_url:string;detail:'low'}>=[
