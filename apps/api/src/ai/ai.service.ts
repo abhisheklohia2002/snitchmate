@@ -122,7 +122,7 @@ export class AiService {
   if(!c.confirmedAt||!c.brief)throw new ForbiddenException('Confirm the brief before continuing to booking.');
   const brief=briefSchema.parse(c.brief);
   await this.files(actor.id,brief.imageFileIds);
-  const requirements=aiRequirements.parse({...c.requirements,...brief,missingInformation:[],uncertainty:[]});
+  const requirements=aiRequirements.parse({...aiRequirements.parse(c.requirements??emptyRequirements),...brief,missingInformation:[],uncertainty:[]});
   const found=(await this.matching.find(requirements)).find(g=>g.id===brief.gigId&&g.tailor.id===brief.tailorId&&g.categoryId===brief.categoryId);
   if(!found||!found.packages.some(p=>p.tier===brief.gigTier))throw new ConflictException('The selected package is no longer available.');
   return {serviceType:brief.serviceType,categoryId:brief.categoryId,tailorId:brief.tailorId,gigId:brief.gigId,gigTier:brief.gigTier,referenceImageIds:brief.imageFileIds,
