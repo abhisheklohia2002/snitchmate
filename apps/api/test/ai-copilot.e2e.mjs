@@ -99,6 +99,37 @@ async function main(){
  await req('POST','/ai/conversations/'+providerSession.id+'/messages',providerUser,{message:'simulate-invalid-output',requestId:uuid()},503);
  await req('POST','/ai/conversations/'+providerSession.id+'/messages',providerUser,{message:'simulate-timeout',requestId:uuid()},503);
  pass('malformed AI JSON and model timeout return safe, non-booking errors');
+
+ const hem=await db.serviceCategory.findUniqueOrThrow({where:{code:'HEM'}});
+ await db.tailorService.create({data:{tailorId:tailor.id,categoryId:hem.id,basePricePaise:35000n,minDays:3,maxDays:8}});
+ const alterationGig=await db.gig.create({data:{
+  tailorId:tailor.id,categoryId:hem.id,slug:'ai-jeans-'+uuid(),title:'Jeans hemming and alterations',description:'Jeans alterations from our approved tailoring workshop',status:'PUBLISHED',
+  packages:{create:[{tier:'BASIC',title:'Hemming',description:'Precise denim hemming',pricePaise:90000n,deliveryDays:6,revisions:1}]}
+ }});
+ const alterationUser=await account('AI alteration customer');
+ const designPhoto=await db.uploadedFile.create({data:{ownerId:alterationUser.id,storageKey:'ci/'+uuid()+'.png',mimeType:'image/png',sizeBytes:1000,purpose:'DESIGN',status:'VERIFIED'}});
+ const alteration=await req('POST','/ai/conversations',alterationUser,{});
+ const altResult=await req('POST','/ai/conversations/'+alteration.id+'/messages',alterationUser,{message:'Please help alter my jeans in 110086',requestId:uuid(),imageFileIds:[designPhoto.id]});
+ assert.ok(altResult.recommendations.some(g=>g.id===alterationGig.id),'approved alteration gig must be matched');
+ const altBrief={...altResult.requirements,imageFileIds:[designPhoto.id],gigId:alterationGig.id,gigTier:'BASIC',categoryId:hem.id,tailorId:tailor.id,
+  additionalInstructions:'Shorten the jeans legs by 3 cm and keep the original hem'};
+ await req('POST','/ai/conversations/'+alteration.id+'/confirm',alterationUser,altBrief);
+ const prefill=await req('GET','/ai/conversations/'+alteration.id+'/booking',alterationUser);
+ assert.deepEqual(prefill.referenceImageIds,[],'design inspiration cannot bypass required BEFORE photo');
+ pass('alteration gig matching preserves original booking before-photo validation');
+ const parallelUser=await account('AI race test');
+ const parallelSession=await req('POST','/ai/conversations',parallelUser,{});
+ const concurrent={message:'I want a blouse in 110086 under 2000',requestId:uuid(),imageFileIds:[]};
+ const both=await Promise.allSettled([
+  req('POST','/ai/conversations/'+parallelSession.id+'/messages',parallelUser,concurrent,201),
+  req('POST','/ai/conversations/'+parallelSession.id+'/messages',parallelUser,concurrent,409)
+ ]);
+ assert.ok(both.some(x=>x.status==='fulfilled'),'one concurrent request must finish');
+ assert.equal(await db.aiMessage.count({where:{conversationId:parallelSession.id,role:'USER',requestId:concurrent.requestId}}),1,'exactly one message should be inserted');
+ const parallelUsage=await db.aiDailyUsage.findUniqueOrThrow({where:{userId_day:{userId:parallelUser.id,day:new Date().toISOString().slice(0,10)}}});
+ assert.equal(parallelUsage.requests,1,'concurrent retries must not spend two quotas');
+ pass('parallel idempotency calls cannot double-charge a customer');
+
  assert.equal((await req('GET','/ai/conversations',stranger)).length,0);
  console.log('AI E2E PASSED: '+checks+' grouped assertions');
 }
