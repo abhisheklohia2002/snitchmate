@@ -2,7 +2,8 @@
 import {Button,Empty,Spin,Switch} from 'antd';
 import {Bell,CheckCheck,Volume2} from 'lucide-react';
 import {RequireAuth} from '@/components/Auth';
-import {NotificationItem,useNotifications} from '@/components/NotificationProvider';
+import {useNotifications} from '@/components/NotificationProvider';
+import {NotificationItem} from '@/components/NotificationBell';
 import {PageTitle} from '@/components/Shared';
 export default function NotificationsPage(){return <RequireAuth><NotificationsScreen/></RequireAuth>}
 function NotificationsScreen(){

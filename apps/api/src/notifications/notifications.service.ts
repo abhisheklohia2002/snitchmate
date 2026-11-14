@@ -49,7 +49,7 @@ export class NotificationsService {
      this.db.refund.findMany({where:{orderId:{in:orderIds},createdAt:{gte:cutoff}},orderBy:{createdAt:'desc'},take:90}),
      this.db.logisticsHandoff.findMany({where:{job:{orderId:{in:orderIds}},occurredAt:{gte:cutoff}},include:{job:{select:{orderId:true,direction:true}}},orderBy:{occurredAt:'desc'},take:100})
     ]);
-    for(const e of events){const title=STATUS[e.to];if(title)this.add(rows,actor.id,'customer','order:'+e.id,'ORDER',title[0],title[1]+' · '+(numbers.get(e.orderId)||'Order'),'/orders/'+e.orderId,e.createdAt);}
+    for(const e of events){const title=STATUS[e.to];if(title&&e.to!=='QUOTE_READY')this.add(rows,actor.id,'customer','order:'+e.id,'ORDER',title[0],title[1]+' · '+(numbers.get(e.orderId)||'Order'),'/orders/'+e.orderId,e.createdAt);}
     for(const q of quotes)this.add(rows,actor.id,'customer','quote:'+q.id,'QUOTE','New quotation received','Review your tailor’s quotation for '+(numbers.get(q.orderId)||'your order'),'/orders/'+q.orderId,q.createdAt);
     for(const f of refunds)this.add(rows,actor.id,'customer','refund:'+f.id+':'+f.status,'REFUND','Refund '+f.status.toLowerCase().replaceAll('_',' '),'Refund status changed for '+(numbers.get(f.orderId)||'your order'),'/orders/'+f.orderId,f.updatedAt);
     for(const h of logistics){
@@ -72,10 +72,10 @@ export class NotificationsService {
       ]);
       for(const e of events)if(['QUOTE_REQUESTED','QUOTE_ACCEPTED','PAYMENT_CONFIRMED','MATERIAL_RECEIVED','IN_PRODUCTION','COMPLETED','DISPUTED'].includes(e.to)){
        const title=STATUS[e.to]||['Order update','Your order status has changed.'];
-       this.add(rows,actor.id,'tailor_owner','tailor-order:'+e.id,'ORDER',e.to==='QUOTE_REQUESTED'?'New order request':title[0],title[1]+' · '+(num.get(e.orderId)||'Order'),'/tailor/orders/'+e.orderId,e.createdAt);
+       this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','tailor-order:'+e.id,'ORDER',e.to==='QUOTE_REQUESTED'?'New order request':title[0],title[1]+' · '+(num.get(e.orderId)||'Order'),'/tailor/orders/'+e.orderId,e.createdAt);
       }
-      for(const r of reviews)this.add(rows,actor.id,'tailor_owner','review:'+r.id,'REVIEW','New customer review','A customer left a review on '+(num.get(r.orderId)||'an order'),'/tailor/orders/'+r.orderId,r.createdAt);
-      for(const p of payouts)this.add(rows,actor.id,'tailor_owner','payout:'+p.id+':'+p.status,'PAYOUT','Payout '+p.status.toLowerCase().replaceAll('_',' '),'Payout update for '+(num.get(p.orderId)||'an order'),'/tailor/earnings',p.paidAt||p.createdAt);
+      for(const r of reviews)this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','review:'+r.id,'REVIEW','New customer review','A customer left a review on '+(num.get(r.orderId)||'an order'),'/tailor/orders/'+r.orderId,r.createdAt);
+      for(const p of payouts)this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','payout:'+p.id+':'+p.status,'PAYOUT','Payout '+p.status.toLowerCase().replaceAll('_',' '),'Payout update for '+(num.get(p.orderId)||'an order'),'/tailor/earnings',p.paidAt||p.createdAt);
      }
     }
    }
@@ -98,11 +98,11 @@ export class NotificationsService {
      this.db.logisticsJob.findMany({where:{status:'FAILED_ATTEMPT',updatedAt:{gte:cutoff}},take:80,orderBy:{updatedAt:'desc'}}),
      this.db.auditLog.findMany({where:{createdAt:{gte:cutoff},action:{in:['REFUND_ESCALATED','MATERIAL_ISSUE_REVIEWED','REFUND_REQUESTED','DELIVERY_ATTEMPT_FAILED']}},take:80,orderBy:{createdAt:'desc'}})
     ]);
-    for(const t of tailors)if(t.status==='PENDING')this.add(rows,actor.id,'admin','tailor-pending:'+t.id,'APPROVAL','Tailor approval request','A new tailor shop is awaiting verification.','/admin/tailors',t.createdAt);
-    for(const p of partners)this.add(rows,actor.id,'admin','rider-application:'+p.id,'APPROVAL','New delivery partner application','A local delivery partner has applied.','/admin/delivery-partners',p.createdAt);
-    for(const d of disputes)this.add(rows,actor.id,'admin','dispute:'+d.id,'CLAIM','New customer claim','A claim needs operations review.','/admin/disputes',d.createdAt);
-    for(const j of failed)this.add(rows,actor.id,'admin','delivery-failed:'+j.id,'DELIVERY','Delivery exception','A courier delivery attempt needs review.','/admin/logistics',j.updatedAt);
-    for(const a of audits)this.add(rows,actor.id,'admin','audit:'+a.id,'ADMIN','Operations action requires attention',a.action.replaceAll('_',' ').toLowerCase(),'/admin',a.createdAt);
+    for(const t of tailors)if(t.status==='PENDING')this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','tailor-pending:'+t.id,'APPROVAL','Tailor approval request','A new tailor shop is awaiting verification.','/admin/tailors',t.createdAt);
+    for(const p of partners)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','rider-application:'+p.id,'APPROVAL','New delivery partner application','A local delivery partner has applied.','/admin/delivery-partners',p.createdAt);
+    for(const d of disputes)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','dispute:'+d.id,'CLAIM','New customer claim','A claim needs operations review.','/admin/disputes',d.createdAt);
+    for(const j of failed)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','delivery-failed:'+j.id,'DELIVERY','Delivery exception','A courier delivery attempt needs review.','/admin/logistics',j.updatedAt);
+    for(const a of audits)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','audit:'+a.id,'ADMIN','Operations action requires attention',a.action.replaceAll('_',' ').toLowerCase(),'/admin',a.createdAt);
    }
    if(rows.length)await this.db.notification.createMany({data:rows,skipDuplicates:true});
   }catch(e){this.recent.delete(actor.id);throw e;}
