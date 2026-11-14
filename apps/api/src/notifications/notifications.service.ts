@@ -76,6 +76,10 @@ export class NotificationsService {
       }
       for(const r of reviews)this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','review:'+r.id,'REVIEW','New customer review','A customer left a review on '+(num.get(r.orderId)||'an order'),'/tailor/orders/'+r.orderId,r.createdAt);
       for(const p of payouts)this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff','payout:'+p.id+':'+p.status,'PAYOUT','Payout '+p.status.toLowerCase().replaceAll('_',' '),'Payout update for '+(num.get(p.orderId)||'an order'),'/tailor/earnings',p.paidAt||p.createdAt);
+      const courierJobs=await this.db.logisticsJob.findMany({where:{orderId:{in:orderIds},courierId:{not:null},updatedAt:{gte:cutoff}},take:100,orderBy:{updatedAt:'desc'}});
+      for(const job of courierJobs)this.add(rows,actor.id,actor.roles.includes('tailor_owner')?'tailor_owner':'tailor_staff',
+       'tailor-courier:'+job.id,'DELIVERY','Courier assigned',
+       'A delivery partner has been assigned to '+(num.get(job.orderId)||'an order'),'/tailor/orders/'+job.orderId,job.updatedAt);
      }
     }
    }
@@ -87,6 +91,11 @@ export class NotificationsService {
       this.db.logisticsJob.findMany({where:{courierId:null,status:{in:['UNASSIGNED','PICKUP_SCHEDULED']},createdAt:{gte:cutoff},order:{OR:[{pickupAddress:{pincode:partner.servicePincode}},{returnAddress:{pincode:partner.servicePincode}},{tailor:{pincode:partner.servicePincode}}]}},take:35,orderBy:{createdAt:'desc'}})
      ]);
      for(const j of assigned)this.add(rows,actor.id,'courier','assigned:'+j.id,'DELIVERY','Delivery assignment','You have a delivery job assigned.','/delivery',j.updatedAt);
+     const handoffs=await this.db.logisticsHandoff.findMany({where:{job:{courierId:actor.id},occurredAt:{gte:cutoff}},take:100,orderBy:{occurredAt:'desc'}});
+     for(const handoff of handoffs){
+      this.add(rows,actor.id,'courier','courier-handoff:'+handoff.id,'DELIVERY',
+       'Handoff verified','A parcel handoff was verified and recorded.','/delivery',handoff.occurredAt);
+     }
      for(const j of available)this.add(rows,actor.id,'courier','available:'+j.id,'DELIVERY','New delivery job nearby','A pickup or return job is available in your service area.','/delivery',j.createdAt);
     }
    }
@@ -103,6 +112,12 @@ export class NotificationsService {
     for(const d of disputes)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','dispute:'+d.id,'CLAIM','New customer claim','A claim needs operations review.','/admin/disputes',d.createdAt);
     for(const j of failed)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','delivery-failed:'+j.id,'DELIVERY','Delivery exception','A courier delivery attempt needs review.','/admin/logistics',j.updatedAt);
     for(const a of audits)this.add(rows,actor.id,actor.roles.includes('admin')?'admin':'finance','audit:'+a.id,'ADMIN','Operations action requires attention',a.action.replaceAll('_',' ').toLowerCase(),'/admin',a.createdAt);
+    if(actor.roles.includes('admin')){
+     const exceptions=await this.db.orderStatusEvent.findMany({where:{createdAt:{gte:cutoff},to:{in:['PAYMENT_FAILED','MATERIAL_ISSUE','DISPUTED']}},take:80,orderBy:{createdAt:'desc'}});
+     for(const item of exceptions)this.add(rows,actor.id,'admin','exception:'+item.id,'ADMIN',
+      item.to==='PAYMENT_FAILED'?'Payment exception':'Order needs manual review',
+      'An order requires attention from StitchMate operations.','/admin/orders',item.createdAt);
+    }
    }
    if(rows.length)await this.db.notification.createMany({data:rows,skipDuplicates:true});
   }catch(e){this.recent.delete(actor.id);throw e;}
