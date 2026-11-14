@@ -3,10 +3,10 @@ import {useEffect,useState} from 'react';
 import {api} from '@/lib/api';
 import Link from 'next/link';
 export function useLoad<T>(path:string,enabled=true){const [data,setData]=useState<T|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);const [version,refresh]=useState(0);useEffect(()=>{if(!enabled){setLoading(false);return;}let active=true;setLoading(true);api<T>(path).then(d=>{if(active){setData(d);setError('');}}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[path,enabled,version]);return {data,error,loading,refresh:()=>refresh(n=>n+1)};}
-export function PageTitle({eyebrow,title,lead}:{eyebrow?:string,title:string,lead?:string}){return <div className="page-title"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{lead&&<p>{lead}</p>}</div>}
+export function PageTitle({eyebrow,title,lead}:{eyebrow?:string,title:string,lead?:string}){return <header className="page-title">{eyebrow&&<span className="eyebrow"><span className="eyebrow-line" aria-hidden="true"/>{eyebrow}</span>}<h1>{title}</h1>{lead&&<p>{lead}</p>}</header>}
 export function Alert({error,success}:{error?:string;success?:string}){return <>{error&&<div className="error" role="alert">{error}</div>}{success&&<div className="success" role="status">{success}</div>}</>}
 export function SectionHeader({children,action}:{children:React.ReactNode;action?:{label:string;href:string}}){return <div className="list-header"><h3>{children}</h3>{action&&<Link href={action.href} className="text-link">{action.label} →</Link>}</div>}
-export function Busy({loading}:{loading:boolean}){return loading?<p className="muted">Loading…</p>:null;}
+export function Busy({loading}:{loading:boolean}){return loading?<div className="loading-state" role="status"><span className="loading-spinner" aria-hidden="true"/>Loading…</div>:null;}
 export type Category={id:string;code:string;title:string;serviceType:string;description:string};
 export type TailorService={id:string;categoryId:string;basePricePaise:string;minDays:number;maxDays:number;category:Category};
 export type Tailor={id:string;slug:string;shopName:string;description:string;pincode:string;turnaroundDays:number;status?:string;services:TailorService[];zones?:string[];address?:string;latitude?:number|null;longitude?:number|null;distanceKm?:number};

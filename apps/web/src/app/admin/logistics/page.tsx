@@ -61,7 +61,7 @@ export default function Logistics(){
      <label>Assigned courier<select value={courierIds[j.id]??j.courierId??''} onChange={e=>setCouriers(x=>({...x,[j.id]:e.target.value}))}><option value="">Choose courier…</option>{couriers?.map(c=><option key={c.id} value={c.id}>{c.name||c.phone} · {c.phone}</option>)}</select></label>
      <div style={{alignSelf:'end',paddingBottom:7}}><button className="btn small" disabled={busy||!(courierIds[j.id]||j.courierId)} onClick={()=>act(`/admin/logistics/jobs/${j.id}/assign`,{courierId:courierIds[j.id]||j.courierId})}>{j.status==='FAILED_ATTEMPT'?'Reassign / retry':'Assign courier'}</button></div>
     </div>}
-    {canVerify&&<div className="card" style={{marginTop:18,boxShadow:'none',background:'#faf8f3'}}>
+    {canVerify&&<div className="card" style={{marginTop:18,boxShadow:'none',background:'var(--sm-surface-soft)'}}>
      <h3>{stage}</h3><p><strong>Handoff:</strong> {handoffLabel(j)}. The {step==='SENDER_PICKUP'?'sender':'recipient'} must show their OTP to courier/operations.</p>
      <button className="btn secondary small" disabled={busy} onClick={()=>act(`/admin/logistics/jobs/${j.id}/otp`,{step})}>Send {step==='SENDER_PICKUP'?'pickup':'delivery'} verification OTP</button>
      <div className="field-grid">

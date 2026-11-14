@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useState} from 'react';
+import {Input} from 'antd';
 import {Scissors,Clock3} from 'lucide-react';
 import {PageTitle,useLoad} from '@/components/Shared';
 import {money} from '@/lib/api';
@@ -11,7 +12,7 @@ export default function Gigs(){
  return <div className="container">
   <PageTitle eyebrow="Tailor-made services" title="Discover tailoring gigs" lead="Explore verified local tailors, choose a package, and request a quote with doorstep pickup and delivery."/>
   <form className="card" style={{display:'flex',gap:12,alignItems:'end',flexWrap:'wrap'}} onSubmit={e=>{e.preventDefault();if(!pin||/^\d{6}$/.test(pin))setFilter(pin);}}>
-   <label style={{flex:'1 1 240px',margin:0}}>Serviceable pincode<input value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="All areas / enter pincode"/></label>
+   <label style={{flex:'1 1 240px',margin:0}}>Serviceable pincode<Input size="large" value={pin} maxLength={6} inputMode="numeric" onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,6))} placeholder="All areas / enter pincode"/></label>
    <button type="submit" className="btn">Find gigs</button>
    {filter&&<button type="button" className="btn secondary" onClick={()=>{setFilter('');setPin('');}}>Show all</button>}
   </form>
