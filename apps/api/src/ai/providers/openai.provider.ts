@@ -6,8 +6,8 @@ import { AiRequirements, modelResultSchema, modelJsonSchema, emptyRequirements }
 
 export type VisionReference={url:string};
 function redactPrivateIdentifiers(value:string){
- return value.replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g,'[email redacted]')
-  .replace(/(?:\\+?\\d[\\d\\s().-]{8,}\\d)/g,'[phone redacted]')
+ return value.replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g,'[email redacted]')
+  .replace(/(?:\+?\d[\d\s().-]{8,}\d)/g,'[phone redacted]')
   .slice(0,1800);
 }
 export type AiCompletion={reply:string;requirements:AiRequirements;tokens:number};
