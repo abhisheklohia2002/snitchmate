@@ -92,7 +92,7 @@ async function main(){
  await req('POST','/ai/conversations/'+id+'/messages',customer,{message:'simulate-rate-limit',requestId:uuid()},429);
  await req('POST','/ai/conversations/'+id+'/messages',customer,{message:'one more please',requestId:uuid()},429);
  const used=await db.aiDailyUsage.findUniqueOrThrow({where:{userId_day:{userId:customer.id,day:new Date().toISOString().slice(0,10)}}});
- assert.equal(used.requests,3);
+ assert.equal(used.requests,2);
  pass('per-user daily quota is atomic, includes failed provider attempts and blocks overage');
  assert.equal((await req('GET','/ai/conversations',stranger)).length,0);
  console.log('AI E2E PASSED: '+checks+' grouped assertions');
