@@ -66,6 +66,25 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
 
  const authPage=await browser.newPage({viewport:{width:390,height:844}});
  let soundEnabled=false,read=false;
+
+ await authPage.addInitScript(()=>{
+  window.__toneStarts=0;
+  class FakeStream{
+   onmessage=null;onerror=null;
+   constructor(){window.__notificationStream=this;}
+   close(){}
+  }
+  class FakeAudio {
+   currentTime=0;destination={};state='running';
+   constructor(){window.__toneStarts+=1;}
+   createOscillator(){return {type:'sine',frequency:{value:0},connect(){},start(){},stop(){}};}
+   createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}};}
+   close(){return Promise.resolve();}
+  }
+  Object.defineProperty(window,'EventSource',{value:FakeStream,configurable:true});
+  Object.defineProperty(window,'AudioContext',{value:FakeAudio,configurable:true});
+ });
+
  await authPage.route('**/api/v1/auth/me',route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({id:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',name:'UI Tester',phone:'+919999999999',roles:['customer'],tailorIds:[]})}));
  await authPage.route('**/api/v1/notifications/preferences',route=>{
   if(route.request().method()==='PATCH')soundEnabled=JSON.parse(route.request().postData()||'{}').soundEnabled;
@@ -80,8 +99,23 @@ fs.mkdirSync('artifacts/ui-screenshots',{recursive:true});
  await authPage.getByText('New quotation received').waitFor();
  await authPage.waitForTimeout(400); // Await completion of Ant Design Drawer transition before screenshot.
  assert.equal(soundEnabled,false,'notification sound must be off by default');
+ await authPage.evaluate(()=>{
+  window.__notificationStream?.onmessage?.({data:JSON.stringify({latestId:'cccccccc-cccc-4ccc-cccc-cccccccccccc',unreadCount:2})});
+ });
+ assert.equal(await authPage.evaluate(()=>window.__toneStarts),0,'muted notifications must never play audio');
+
  await authPage.getByRole('switch',{name:'Enable notification sound'}).click();
  assert.equal(soundEnabled,true,'sound preference toggle must invoke persistent backend');
+ await authPage.evaluate(()=>{
+  window.__notificationStream?.onmessage?.({data:JSON.stringify({latestId:'dddddddd-dddd-4ddd-dddd-dddddddddddd',unreadCount:3})});
+ });
+ assert.equal(await authPage.evaluate(()=>window.__toneStarts),1,'first genuinely new opt-in alert plays a chime');
+ await authPage.evaluate(()=>{
+  window.__notificationStream?.onmessage?.({data:JSON.stringify({latestId:'dddddddd-dddd-4ddd-dddd-dddddddddddd',unreadCount:3})});
+ });
+ assert.equal(await authPage.evaluate(()=>window.__toneStarts),1,'duplicate SSE notifications must not replay audio');
+ console.log('PASS notification sound muted on init, opt-in on new events and deduplicated on replay');
+
  await authPage.screenshot({path:'artifacts/ui-screenshots/mobile-notifications-light.png',fullPage:false});
  await authPage.getByRole('button',{name:'Mark all notifications read'}).click();
  assert.equal(read,true);
