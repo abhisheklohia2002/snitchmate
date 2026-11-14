@@ -131,7 +131,7 @@ function AiStudioScreen(){
     <div className="ai-section-heading"><Sparkles size={21}/><div><h2>Editable tailoring brief</h2><p>Check and correct the AI’s suggestions before booking.</p></div></div>
     <div className="field-grid">
      <label>Garment type<Input value={requirements.garmentType||''} maxLength={90} onChange={e=>edit('garmentType',e.target.value||null)} placeholder="e.g. blouse"/></label>
-     <label>Service type<Select style={{width:'100%'}} value={requirements.serviceType||undefined} onChange={v=>edit('serviceType',v)} placeholder="Choose service" options={[{value:'CUSTOM_STITCHING',label:'Custom stitching'},{value:'ALTERATION',label:'Alteration'}]}/></label>
+     <label>Service type<select value={requirements.serviceType||''} onChange={e=>edit('serviceType',e.target.value?e.target.value as 'CUSTOM_STITCHING'|'ALTERATION':null)}><option value="">Select service</option><option value="CUSTOM_STITCHING">Custom stitching</option><option value="ALTERATION">Alteration</option></select></label>
      <label>Delivery pincode<Input inputMode="numeric" maxLength={6} value={requirements.pincode||''} onChange={e=>edit('pincode',e.target.value.replace(/\D/g,'').slice(0,6)||null)} placeholder="6-digit pincode"/></label>
      <label>Maximum budget (₹)<InputNumber style={{width:'100%'}} min={1} max={1000000} value={num(requirements.budgetMax)} onChange={v=>edit('budgetMax',v)}/></label>
      <label>Preferred days<InputNumber style={{width:'100%'}} min={1} max={90} value={num(requirements.preferredDeliveryDays)} onChange={v=>edit('preferredDeliveryDays',v)}/></label>
