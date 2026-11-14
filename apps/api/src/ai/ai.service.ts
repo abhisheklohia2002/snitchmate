@@ -48,8 +48,8 @@ export class AiService {
  }
  async get(actor:Actor,id:string){
   const c=await this.own(actor.id,id);
-  const messages=await this.db.aiMessage.findMany({where:{conversationId:c.id},orderBy:[{createdAt:'asc'},{id:'asc'}],take:60,select:{id:true,role:true,content:true,imageFileIds:true,createdAt:true}});
-  return {id:c.id,title:c.title,requirements:c.requirements??emptyRequirements,brief:c.brief,referenceImageIds:c.referenceImageIds??[],confirmedAt:c.confirmedAt,messages};
+  const messages=await this.db.aiMessage.findMany({where:{conversationId:c.id},orderBy:[{createdAt:'desc'},{id:'desc'}],take:60,select:{id:true,role:true,content:true,imageFileIds:true,createdAt:true}});
+  return {id:c.id,title:c.title,requirements:c.requirements??emptyRequirements,brief:c.brief,referenceImageIds:c.referenceImageIds??[],confirmedAt:c.confirmedAt,messages:messages.reverse()};
  }
  async speak(actor:Actor,id:string,unknown:unknown){
   if(!this.model.enabled())return {enabled:false,error:'AI Copilot is not configured. Ask an administrator to configure OPENAI_API_KEY.'};
