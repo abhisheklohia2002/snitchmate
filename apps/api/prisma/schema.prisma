@@ -517,7 +517,7 @@ model DeliveryPartner {
 model Notification {
   id          String    @id @default(uuid()) @db.Uuid
   userId      String    @db.Uuid
-  role        String?
+  role        String
   sourceKey   String
   type        String
   title       String

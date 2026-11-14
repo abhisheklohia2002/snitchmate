@@ -2,7 +2,7 @@
 CREATE TABLE "Notification" (
   "id" UUID NOT NULL,
   "userId" UUID NOT NULL,
-  "role" TEXT,
+  "role" TEXT NOT NULL,
   "sourceKey" TEXT NOT NULL,
   "type" TEXT NOT NULL,
   "title" TEXT NOT NULL,
