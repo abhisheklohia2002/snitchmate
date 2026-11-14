@@ -66,6 +66,8 @@ jobs:
           exit 1
       - name: Run actual gig booking and both delivery legs through HTTP
         run: pnpm --filter @stitchmate/api exec node test/gig-delivery.e2e.mjs
+      - name: Verify per-user notification authorization, read-state and SSE
+        run: pnpm --filter @stitchmate/api exec node test/notifications.e2e.mjs
       - name: Verify staging entrypoint isolates database schema
         run: |
           STITCHMATE_STAGING_DB_BASE_URL="postgresql://ci:ci@127.0.0.1:5432/stitchmate_e2e" PORT=4020 node scripts/start-staging-api.cjs > /tmp/stitchmate-stage-check.log 2>&1 &

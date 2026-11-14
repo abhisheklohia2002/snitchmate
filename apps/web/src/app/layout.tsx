@@ -5,6 +5,10 @@ import './globals.css';
 import 'leaflet/dist/leaflet.css';
 import {AuthProvider} from '@/components/Auth';
 import {Nav} from '@/components/Nav';
+import {AntdRegistry} from '@ant-design/nextjs-registry';
+import {StitchThemeProvider} from '@/components/ThemeProvider';
+import {NotificationProvider} from '@/components/NotificationProvider';
+import {initialThemeScript} from '@/lib/theme-script';
 
 export const metadata:Metadata={
  title:'StitchMate | Tailoring at your doorstep',
@@ -12,7 +16,7 @@ export const metadata:Metadata={
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
- return <html lang="en"><body><AuthProvider><Nav/>
+ return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{__html:initialThemeScript}}/></head><body><AntdRegistry><StitchThemeProvider><AuthProvider><NotificationProvider><Nav/>
   {process.env.NEXT_PUBLIC_STITCHMATE_STAGE==='true'&&<div role="status" className="staging-banner">STITCHMATE STAGING DEMO — No real payments, OTPs or deliveries. Test data only.</div>}
   <main id="main-content">{children}</main>
   <footer className="footer">
@@ -28,5 +32,5 @@ export default function RootLayout({children}:{children:React.ReactNode}){
     </div>
     <div className="container footer-bottom"><span>© {new Date().getFullYear()} StitchMate. Made to fit your life.</span><span>Currently serving selected Delhi NCR pincodes · <Link href="/help">Policies <ArrowUpRight size={13}/></Link></span></div>
   </footer>
- </AuthProvider></body></html>;
+ </NotificationProvider></AuthProvider></StitchThemeProvider></AntdRegistry></body></html>;
 }

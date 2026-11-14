@@ -1,10 +1,12 @@
 'use client';
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
-import {ArrowRight,ChevronDown,LogOut,Menu as MenuIcon,Package,Scissors,ShieldCheck,Truck,UserRound,X,Ruler} from 'lucide-react';
+import {ArrowRight,ChevronDown,LogOut,Menu as MenuIcon,Package,Scissors,ShieldCheck,Truck,UserRound,X,Ruler,Bell} from 'lucide-react';
 import {useEffect,useRef} from 'react';
 import {post} from '@/lib/api';
 import {useAuth} from './Auth';
+import {NotificationBell} from './NotificationBell';
+import {ThemeToggle} from './ThemeToggle';
 
 const discovery=[
  {href:'/services',label:'Services'},
@@ -28,7 +30,8 @@ export function Nav(){
  const personal=[
   {href:'/orders',label:'My orders',Icon:Package},
   {href:'/measurements',label:'Measurements',Icon:Ruler},
-  {href:'/profile',label:'My account',Icon:UserRound}
+  {href:'/profile',label:'My account',Icon:UserRound},
+  {href:'/notifications',label:'Notifications',Icon:Bell}
  ];
  const workspaces=[
   ...(user?.roles.some(r=>r==='tailor_owner'||r==='tailor_staff')?[{href:'/tailor/dashboard',label:'Tailor portal',Icon:Scissors}]:[]),
@@ -51,6 +54,8 @@ export function Nav(){
       {discovery.map(link=><Link key={link.href} href={link.href} className={'nav-primary-link'+(active(link.href)?' active':'')} aria-current={active(link.href)?'page':undefined}>{link.label}</Link>)}
     </nav>
     <div className="nav-actions">
+      {user&&<NotificationBell/>}
+      <span className="header-theme-control"><ThemeToggle/></span>
       {user?<>
        <Link className={'nav-orders-link'+(active('/orders')?' active':'')} href="/orders"><Package size={17}/><span>My orders</span></Link>
        <details ref={accountRef} className="account-menu">
@@ -87,6 +92,7 @@ export function Nav(){
          </nav>
          {workspaces.length>0&&<><p className="mobile-nav-label">Workspaces</p><nav className="mobile-nav-list" aria-label="Mobile workspace navigation">{workspaces.map(({href,label,Icon})=><Link key={href} href={href} className={'mobile-nav-link'+(active(href)?' active':'')} onClick={()=>drawerRef.current?.close()}><span className="mobile-nav-icon"><Icon size={18}/>{label}</span><ArrowRight size={16}/></Link>)}</nav></>}
         </>}
+        <ThemeToggle mobile/>
        </div>
        <div className="mobile-drawer-bottom">
         {user?<button type="button" className="btn secondary mobile-drawer-action" onClick={signOut}><LogOut size={18}/> Sign out</button>:<Link href="/login" className="btn mobile-drawer-action" onClick={()=>drawerRef.current?.close()}>Sign in to StitchMate <ArrowRight size={17}/></Link>}
